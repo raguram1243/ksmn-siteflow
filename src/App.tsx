@@ -12,6 +12,7 @@ import ProjectsPage from './pages/ProjectsPage'
 import ExpensesPage from './pages/ExpensesPage'
 import PaymentsPage from './pages/PaymentsPage'
 import UserManagementPage from './pages/UserManagementPage'
+import ProfitabilityReport from './pages/ProfitabilityReport'
 import ForcePasswordChange from './pages/ForcePasswordChange'
 import Layout from './components/Layout'
 import { setupAutoSync } from './utils/sync'
@@ -147,6 +148,14 @@ function AppRoutes() {
         <ProtectedRoute>
           <Layout>
             <PaymentsPage />
+          </Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/reports/profitability" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <Layout>
+            <ProfitabilityReport />
           </Layout>
         </ProtectedRoute>
       } />
