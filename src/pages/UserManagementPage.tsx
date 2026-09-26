@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../contexts/ToastContext'
 import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
+import PasswordInput from '../components/PasswordInput'
 import type { Profile } from '../types/database'
 
 interface User extends Profile {
@@ -336,13 +337,11 @@ export default function UserManagementPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Temporary Password *</label>
-                  <input
-                    type="text"
+                  <PasswordInput
                     required
                     value={formPassword}
                     onChange={(e) => setFormPassword(e.target.value)}
                     placeholder="Set a temporary password"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     User will be required to change this on first login.

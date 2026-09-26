@@ -949,7 +949,7 @@ export default function QuotationsPage() {
               </div>
             )}
 
-            <div className="border rounded-md overflow-hidden mb-4">
+            <div className="border rounded-md overflow-x-auto mb-4">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>

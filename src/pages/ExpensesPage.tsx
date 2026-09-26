@@ -886,7 +886,7 @@ export default function ExpensesPage() {
             {selectedExpense.expense_line_items && selectedExpense.expense_line_items.length > 0 && (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-2">Line Items</label>
-                <div className="border rounded-md overflow-hidden">
+                <div className="border rounded-md overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>

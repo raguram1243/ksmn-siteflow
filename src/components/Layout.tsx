@@ -10,6 +10,7 @@ import { useDarkMode } from '../contexts/DarkModeContext'
 import { useWhatsNew } from '../contexts/WhatsNewContext'
 import OnboardingTour from './OnboardingTour'
 import ProgressBar from './ProgressBar'
+import PasswordInput from './PasswordInput'
 
 // Refresh context type
 interface RefreshContextType {
@@ -250,15 +251,31 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Top Bar - simplified */}
       <header className="bg-white shadow-sm border-b fixed top-0 left-0 right-0 z-40 h-14">
         <div className="flex items-center justify-between h-14 px-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
+            {/* Hamburger toggle - visible on mobile to open the slide-out sidebar */}
+            <button
+              onClick={() => setTouchExpanded((v) => !v)}
+              className="md:hidden p-2.5 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              aria-label="Toggle menu"
+              aria-expanded={touchExpanded}
+              title="Toggle menu"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                {touchExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
             <img src="/KSMN_logo.png" alt="KSMN" className="h-7 w-auto" />
-            <h1 className="text-lg font-bold text-gray-900">KSMN SiteFlow</h1>
-            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+            <h1 className="hidden sm:block text-lg font-bold text-gray-900 dark:text-gray-100">KSMN SiteFlow</h1>
+            <span className={`hidden sm:inline-flex px-2 py-0.5 rounded text-xs font-medium ${
               isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
               {isOnline ? 'Online' : 'Offline'}
             </span>
-            <span className="text-xs text-gray-500 ml-1">({profile?.role})</span>
+            <span className="hidden sm:inline text-xs text-gray-500 ml-1">({profile?.role})</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -268,7 +285,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {/* Refresh Button */}
             <button
               onClick={handleRefresh}
-              className={`p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
+              className={`p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
               title="Refresh data"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,7 +297,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div ref={changelogRef} className="relative">
               <button
                 onClick={() => setShowChangelog(!showChangelog)}
-                className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                className="relative p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                 title="What's New"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -343,7 +360,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {/* Dark Mode Toggle */}
             <button
               onClick={toggle}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
               title={isDark ? 'Light Mode' : 'Dark Mode'}
             >
               {isDark ? (
@@ -367,7 +384,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         onMouseLeave={() => setSidebarExpanded(false)}
         className={`fixed left-0 top-14 bottom-0 z-30 bg-white border-r border-gray-200 shadow-sm
           transition-all duration-200 ease-in-out overflow-hidden
-          ${isExpanded ? 'w-56' : 'w-14'}`}
+          w-56 md:w-14 -translate-x-full md:translate-x-0
+          ${touchExpanded ? 'translate-x-0' : ''}
+          ${isExpanded ? 'md:w-56' : ''}`}
       >
         <div className="flex flex-col h-full">
           {/* Main Nav Items */}
@@ -381,7 +400,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     navigate(item.path)
                     setTouchExpanded(false)
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors duration-150
+                  className={`w-full flex items-center gap-3 px-3 py-3 text-sm font-medium transition-colors duration-150
                     ${active
                       ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-r-2 border-blue-600'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -412,7 +431,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   item.onClick()
                   setTouchExpanded(false)
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors duration-150
+                className={`w-full flex items-center gap-3 px-3 py-3 text-sm font-medium transition-colors duration-150
                   ${item.label === 'Sign Out'
                     ? 'text-red-600 hover:text-red-800 hover:bg-red-50'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -432,14 +451,6 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      {/* Mobile tap-to-expand: invisible click target on collapsed sidebar edge */}
-      {!isExpanded && (
-        <div
-          className="fixed left-0 top-14 bottom-0 z-20 w-4 cursor-pointer md:hidden"
-          onClick={() => setTouchExpanded(true)}
-        />
-      )}
-
       {/* Backdrop for mobile when expanded */}
       {touchExpanded && (
         <div
@@ -450,7 +461,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <main className={`transition-all duration-200 ease-in-out pt-14
-        ${isExpanded ? 'ml-56' : 'ml-14'}`}>
+        ${isExpanded ? 'md:ml-56' : 'md:ml-14'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </div>
@@ -479,33 +490,27 @@ export default function Layout({ children }: { children: ReactNode }) {
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Current Password *</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     required
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">New Password *</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     minLength={6}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Confirm New Password *</label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     required
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     minLength={6}
                   />
                 </div>

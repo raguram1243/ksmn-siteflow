@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import AuroraBackground from '../components/AuroraBackground'
 import AnimatedText from '../components/AnimatedText'
+import PasswordInput from '../components/PasswordInput'
 import { useDarkMode } from '../contexts/DarkModeContext'
 
 export default function LoginPage() {
@@ -103,13 +104,11 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white/80 dark:bg-gray-700/80 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter your password"
               />
             </div>
