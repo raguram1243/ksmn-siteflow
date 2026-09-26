@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { SkeletonDashboard } from '../components/Skeleton'
 import { useToast } from '../contexts/ToastContext'
@@ -9,13 +9,14 @@ import StatCard from '../components/StatCard'
 import ConversionFunnelChart from '../components/ConversionFunnelChart'
 import MonthlyComparisonChart from '../components/MonthlyComparisonChart'
 import BreakdownDonut from '../components/BreakdownDonut'
-import AdminAlertStrip, { type AdminAlert } from '../components/AdminAlertStrip'
+import { useAlerts, type AdminAlert } from '../contexts/AlertsContext'
 
 // 'material' / 'bank_transfer' -> 'Material' / 'Bank Transfer'
 const humanize = (s: string) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
 export default function AdminDashboard() {
   const { addToast } = useToast()
+  const { setAlerts } = useAlerts()
   const [stats, setStats] = useState({
     totalContacts: 0,
     activeLeads: 0,
@@ -218,55 +219,76 @@ export default function AdminDashboard() {
     }
   }
 
-  // Build the alert list from already-fetched dashboard data (no extra queries)
-  const alerts: AdminAlert[] = []
+  // Build the alert list from already-fetched dashboard data (no extra queries).
+  // Memoized so the effect below doesn't re-fire on every render.
+  const alerts = useMemo<AdminAlert[]>(() => {
+    const out: AdminAlert[] = []
 
-  if (overdueCollections.length > 0) {
-    const oldest = overdueCollections
-      .map((oc: any) => Number(oc.days_outstanding) || 0)
-      .reduce((max, d) => Math.max(max, d), 0)
-    alerts.push({
-      id: 'overdue-collections',
-      tone: 'danger',
-      title: `${overdueCollections.length} project${overdueCollections.length > 1 ? 's have' : ' has'} overdue client payments`,
-      detail: `Oldest is ${oldest} day${oldest === 1 ? '' : 's'} outstanding. Total outstanding: ₹${Number(collectionSummary.total_outstanding || 0).toLocaleString()}.`,
-      actionLabel: 'Chase now',
-      path: '/payments',
-    })
-  }
+    if (overdueCollections.length > 0) {
+      const oldest = overdueCollections
+        .map((oc: any) => Number(oc.days_outstanding) || 0)
+        .reduce((max, d) => Math.max(max, d), 0)
+      out.push({
+        id: 'overdue-collections',
+        signature: `${overdueCollections.length}-${collectionSummary.total_outstanding}`,
+        tone: 'danger',
+        title: `${overdueCollections.length} project${overdueCollections.length > 1 ? 's have' : ' has'} overdue client payments`,
+        detail: `Oldest is ${oldest} day${oldest === 1 ? '' : 's'} outstanding. Total outstanding: ₹${Number(collectionSummary.total_outstanding || 0).toLocaleString()}.`,
+        actionLabel: 'Chase now',
+        path: '/payments',
+      })
+    }
 
-  if (overdueFollowups.length > 0) {
-    alerts.push({
-      id: 'overdue-followups',
-      tone: 'warning',
-      title: `${overdueFollowups.length} lead follow-up${overdueFollowups.length > 1 ? 's are' : ' is'} overdue`,
-      detail: 'These leads have no activity since their scheduled follow-up date.',
-      actionLabel: 'Open contacts',
-      path: '/contacts',
-    })
-  }
+    if (overdueFollowups.length > 0) {
+      out.push({
+        id: 'overdue-followups',
+        signature: String(overdueFollowups.length),
+        tone: 'warning',
+        title: `${overdueFollowups.length} lead follow-up${overdueFollowups.length > 1 ? 's are' : ' is'} overdue`,
+        detail: 'These leads have no activity since their scheduled follow-up date.',
+        actionLabel: 'Open contacts',
+        path: '/contacts',
+      })
+    }
 
-  if (stats.belowTargetCount > 0) {
-    alerts.push({
-      id: 'below-target',
-      tone: 'warning',
-      title: `${stats.belowTargetCount} project${stats.belowTargetCount > 1 ? 's are' : ' is'} below target margin`,
-      detail: `Target is currently ${Number(globalMargin).toFixed(2)}%. Review costs or adjust the target.`,
-      actionLabel: 'Review projects',
-      path: '/projects',
-    })
-  }
+    if (stats.belowTargetCount > 0) {
+      out.push({
+        id: 'below-target',
+        signature: String(stats.belowTargetCount),
+        tone: 'warning',
+        title: `${stats.belowTargetCount} project${stats.belowTargetCount > 1 ? 's are' : ' is'} below target margin`,
+        detail: `Target is currently ${Number(globalMargin).toFixed(2)}%. Review costs or adjust the target.`,
+        actionLabel: 'Review projects',
+        path: '/projects',
+      })
+    }
 
-  if (pendingApprovals.length > 0) {
-    alerts.push({
-      id: 'pending-approvals',
-      tone: 'info',
-      title: `${pendingApprovals.length} quotation${pendingApprovals.length > 1 ? 's' : ''} awaiting your approval`,
-      detail: 'Locking an approved quotation creates the project automatically.',
-      actionLabel: 'Review',
-      path: '/quotations',
-    })
-  }
+    if (pendingApprovals.length > 0) {
+      out.push({
+        id: 'pending-approvals',
+        signature: String(pendingApprovals.length),
+        tone: 'info',
+        title: `${pendingApprovals.length} quotation${pendingApprovals.length > 1 ? 's' : ''} awaiting your approval`,
+        detail: 'Locking an approved quotation creates the project automatically.',
+        actionLabel: 'Review',
+        path: '/quotations',
+      })
+    }
+
+    return out
+  }, [
+    overdueCollections,
+    overdueFollowups,
+    pendingApprovals,
+    stats.belowTargetCount,
+    globalMargin,
+    collectionSummary.total_outstanding,
+  ])
+
+  // Hand the derived alerts to the notification bell (it owns read/delete state)
+  useEffect(() => {
+    setAlerts(alerts)
+  }, [alerts, setAlerts])
 
   return (
     <div>
@@ -292,8 +314,7 @@ export default function AdminDashboard() {
         <SkeletonDashboard />
       ) : (
         <>
-          {/* Alerts requiring attention */}
-          <AdminAlertStrip alerts={alerts} />
+          {/* Alerts now live in the notification bell */}
 
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">

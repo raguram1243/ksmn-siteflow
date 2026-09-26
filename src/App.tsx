@@ -21,6 +21,7 @@ import { ToastProvider } from './contexts/ToastContext'
 import { DarkModeProvider } from './contexts/DarkModeContext'
 import { WhatsNewProvider } from './contexts/WhatsNewContext'
 import { ConfirmProvider } from './contexts/ConfirmContext'
+import { AlertsProvider } from './contexts/AlertsContext'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) {
@@ -198,7 +199,9 @@ export default function App() {
             <DarkModeProvider>
               <WhatsNewProvider>
                 <ConfirmProvider>
-                  <AppRoutes />
+                  <AlertsProvider>
+                    <AppRoutes />
+                  </AlertsProvider>
                 </ConfirmProvider>
               </WhatsNewProvider>
             </DarkModeProvider>
