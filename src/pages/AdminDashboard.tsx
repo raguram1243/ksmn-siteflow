@@ -9,6 +9,7 @@ import StatCard from '../components/StatCard'
 import ConversionFunnelChart from '../components/ConversionFunnelChart'
 import MonthlyComparisonChart from '../components/MonthlyComparisonChart'
 import BreakdownDonut from '../components/BreakdownDonut'
+import AdminAlertStrip, { type AdminAlert } from '../components/AdminAlertStrip'
 
 // 'material' / 'bank_transfer' -> 'Material' / 'Bank Transfer'
 const humanize = (s: string) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -217,6 +218,56 @@ export default function AdminDashboard() {
     }
   }
 
+  // Build the alert list from already-fetched dashboard data (no extra queries)
+  const alerts: AdminAlert[] = []
+
+  if (overdueCollections.length > 0) {
+    const oldest = overdueCollections
+      .map((oc: any) => Number(oc.days_outstanding) || 0)
+      .reduce((max, d) => Math.max(max, d), 0)
+    alerts.push({
+      id: 'overdue-collections',
+      tone: 'danger',
+      title: `${overdueCollections.length} project${overdueCollections.length > 1 ? 's have' : ' has'} overdue client payments`,
+      detail: `Oldest is ${oldest} day${oldest === 1 ? '' : 's'} outstanding. Total outstanding: ₹${Number(collectionSummary.total_outstanding || 0).toLocaleString()}.`,
+      actionLabel: 'Chase now',
+      path: '/payments',
+    })
+  }
+
+  if (overdueFollowups.length > 0) {
+    alerts.push({
+      id: 'overdue-followups',
+      tone: 'warning',
+      title: `${overdueFollowups.length} lead follow-up${overdueFollowups.length > 1 ? 's are' : ' is'} overdue`,
+      detail: 'These leads have no activity since their scheduled follow-up date.',
+      actionLabel: 'Open contacts',
+      path: '/contacts',
+    })
+  }
+
+  if (stats.belowTargetCount > 0) {
+    alerts.push({
+      id: 'below-target',
+      tone: 'warning',
+      title: `${stats.belowTargetCount} project${stats.belowTargetCount > 1 ? 's are' : ' is'} below target margin`,
+      detail: `Target is currently ${Number(globalMargin).toFixed(2)}%. Review costs or adjust the target.`,
+      actionLabel: 'Review projects',
+      path: '/projects',
+    })
+  }
+
+  if (pendingApprovals.length > 0) {
+    alerts.push({
+      id: 'pending-approvals',
+      tone: 'info',
+      title: `${pendingApprovals.length} quotation${pendingApprovals.length > 1 ? 's' : ''} awaiting your approval`,
+      detail: 'Locking an approved quotation creates the project automatically.',
+      actionLabel: 'Review',
+      path: '/quotations',
+    })
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
@@ -241,35 +292,8 @@ export default function AdminDashboard() {
         <SkeletonDashboard />
       ) : (
         <>
-          {/* Action Needed Strip */}
-          {(pendingApprovals.length > 0 || overdueFollowups.length > 0 || overdueCollections.length > 0) && (
-            <div className="flex flex-wrap gap-3 mb-6">
-              {pendingApprovals.length > 0 && (
-                <button
-                  onClick={() => { window.location.href = '/quotations' }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-yellow-50 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-900"
-                >
-                  ⚠️ {pendingApprovals.length} Pending Approval{pendingApprovals.length > 1 ? 's' : ''}
-                </button>
-              )}
-              {overdueFollowups.length > 0 && (
-                <button
-                  onClick={() => { window.location.href = '/contacts' }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900"
-                >
-                  ⏰ {overdueFollowups.length} Overdue Follow-up{overdueFollowups.length > 1 ? 's' : ''}
-                </button>
-              )}
-              {overdueCollections.length > 0 && (
-                <button
-                  onClick={() => { window.location.href = '/payments' }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900"
-                >
-                  💰 {overdueCollections.length} Overdue Payment{overdueCollections.length > 1 ? 's' : ''}
-                </button>
-              )}
-            </div>
-          )}
+          {/* Alerts requiring attention */}
+          <AdminAlertStrip alerts={alerts} />
 
           {/* Key Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
