@@ -11,6 +11,7 @@ import { useWhatsNew } from '../contexts/WhatsNewContext'
 import OnboardingTour from './OnboardingTour'
 import ProgressBar from './ProgressBar'
 import PasswordInput from './PasswordInput'
+import { useToast } from '../contexts/ToastContext'
 
 // Refresh context type
 interface RefreshContextType {
@@ -24,6 +25,7 @@ export const RefreshContext = React.createContext<RefreshContextType>({
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { profile, signOut } = useAuth()
+  const { addToast } = useToast()
   const isOnline = useOnlineStatus()
   const navigate = useNavigate()
   const location = useLocation()
@@ -110,7 +112,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     setCurrentPassword('')
     setNewPassword('')
     setConfirmNewPassword('')
-    alert('Password changed successfully!')
+    addToast('Password changed successfully!', 'success')
   }
 
   const navItems = [
@@ -250,6 +252,11 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Top Bar - simplified */}
       <header className="bg-white shadow-sm border-b fixed top-0 left-0 right-0 z-40 h-14">
+        {/* Subtle brand gradient edge across the top bar */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500"
+        />
         <div className="flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-1 sm:gap-3">
             {/* Hamburger toggle - visible on mobile to open the slide-out sidebar */}
@@ -269,7 +276,9 @@ export default function Layout({ children }: { children: ReactNode }) {
               </svg>
             </button>
             <img src="/KSMN_logo.png" alt="KSMN" className="h-7 w-auto" />
-            <h1 className="hidden sm:block text-lg font-bold text-gray-900 dark:text-gray-100">KSMN SiteFlow</h1>
+            <h1 className="hidden sm:block text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">
+              KSMN <span className="text-brand-600 dark:text-brand-400">SiteFlow</span>
+            </h1>
             <span className={`hidden sm:inline-flex px-2 py-0.5 rounded text-xs font-medium ${
               isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>

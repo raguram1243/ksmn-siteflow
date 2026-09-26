@@ -21,6 +21,7 @@ export default function UserManagementPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [tempPassword, setTempPassword] = useState<string | null>(null)
 
   // Form state
   const [formUsername, setFormUsername] = useState('')
@@ -102,9 +103,19 @@ export default function UserManagementPage() {
     })
 
     if (error || data?.error) {
-      alert('Error: ' + (data?.error || error?.message))
+      addToast('Error: ' + (data?.error || error?.message), 'error')
     } else if (data?.temporary_password) {
-      alert(`Password reset successful!\n\nTemporary password: ${data.temporary_password}\n\nPlease share this with the user. They will be required to change it on first login.`)
+      setTempPassword(data.temporary_password)
+    }
+  }
+
+  async function copyTempPassword() {
+    if (!tempPassword) return
+    try {
+      await navigator.clipboard.writeText(tempPassword)
+      addToast('Temporary password copied', 'success')
+    } catch {
+      addToast('Copy failed — please select and copy manually', 'warning')
     }
   }
 
@@ -121,7 +132,7 @@ export default function UserManagementPage() {
     })
 
     if (error || data?.error) {
-      alert('Error: ' + (data?.error || error?.message))
+      addToast('Error: ' + (data?.error || error?.message), 'error')
     } else {
       fetchUsers()
     }
@@ -140,7 +151,7 @@ export default function UserManagementPage() {
     })
 
     if (error || data?.error) {
-      alert('Error: ' + (data?.error || error?.message))
+      addToast('Error: ' + (data?.error || error?.message), 'error')
       setDeletingUserId(null)
       return
     }
@@ -286,6 +297,34 @@ export default function UserManagementPage() {
           </div>
         )}
       </div>
+
+      {/* Temporary Password Modal */}
+      <Modal isOpen={tempPassword !== null} onClose={() => setTempPassword(null)}>
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Password Reset Successful</h3>
+          <button onClick={() => setTempPassword(null)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+          Share this temporary password with the user. They will be required to change it on first login.
+        </p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-md font-mono text-sm text-gray-900 dark:text-gray-100 select-all break-all">
+            {tempPassword}
+          </code>
+          <button
+            onClick={copyTempPassword}
+            className="px-3 py-2 text-sm font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700 whitespace-nowrap"
+          >
+            Copy
+          </button>
+        </div>
+        <div className="mt-5 flex justify-end">
+          <button onClick={() => setTempPassword(null)}
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700">
+            Done
+          </button>
+        </div>
+      </Modal>
 
       {/* Create User Modal */}
       <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)}>

@@ -8,6 +8,7 @@ import type { Contact } from '../types/database'
 import { SkeletonTable } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
+import StatusBadge from '../components/StatusBadge'
 import CopyButton from '../components/CopyButton'
 import Spinner from '../components/Spinner'
 
@@ -154,14 +155,13 @@ export default function LeadsPage() {
                     {lead.site_location && <span className="inline-flex items-center gap-1">{lead.site_location}<CopyButton text={lead.site_location} label="Site address" /></span>}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      lead.lead_status === 'active' ? 'bg-blue-100 text-blue-800' :
-                      lead.lead_status === 'quotation_sent' ? 'bg-yellow-100 text-yellow-800' :
-                      lead.lead_status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <StatusBadge tone={
+                      lead.lead_status === 'confirmed' ? 'green' :
+                      lead.lead_status === 'quotation_sent' ? 'yellow' :
+                      lead.lead_status === 'active' ? 'blue' : 'gray'
+                    }>
                       {lead.lead_status?.replace('_', ' ') || 'Active'}
-                    </span>
+                    </StatusBadge>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {leadQuotations.filter(q => q.lead_id === lead.id).length || '--'}
@@ -189,14 +189,13 @@ export default function LeadsPage() {
           <>
             {/* Lead Status */}
             <div className="mb-4">
-              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                selectedLead.lead_status === 'active' ? 'bg-blue-100 text-blue-800' :
-                selectedLead.lead_status === 'quotation_sent' ? 'bg-yellow-100 text-yellow-800' :
-                selectedLead.lead_status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
+              <StatusBadge tone={
+                selectedLead.lead_status === 'confirmed' ? 'green' :
+                selectedLead.lead_status === 'quotation_sent' ? 'yellow' :
+                selectedLead.lead_status === 'active' ? 'blue' : 'gray'
+              }>
                 {selectedLead.lead_status?.replace('_', ' ') || 'Active'}
-              </span>
+              </StatusBadge>
             </div>
 
             {/* Quotations */}
@@ -261,13 +260,13 @@ export default function LeadsPage() {
                         .limit(1)
 
                       if (quotations && quotations.length > 0) {
-                        alert('Cannot delete this lead — it has quotations attached. Archive or remove the quotations first.')
+                        addToast('Cannot delete this lead — it has quotations attached. Archive or remove the quotations first.', 'warning')
                         return
                       }
 
                       const { error } = await supabase.from('contacts').delete().eq('id', selectedLead.id)
                       if (error) {
-                        alert('Error deleting lead: ' + error.message)
+                        addToast('Error deleting lead: ' + error.message, 'error')
                         addToast('Failed to delete lead', 'error')
                         return
                       }

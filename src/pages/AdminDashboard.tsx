@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { SkeletonDashboard } from '../components/Skeleton'
+import { useToast } from '../contexts/ToastContext'
 import MarginTrendChart from '../components/MarginTrendChart'
 import Modal from '../components/Modal'
 import type { Project, PendingApproval } from '../types/database'
@@ -13,6 +14,7 @@ import BreakdownDonut from '../components/BreakdownDonut'
 const humanize = (s: string) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
 export default function AdminDashboard() {
+  const { addToast } = useToast()
   const [stats, setStats] = useState({
     totalContacts: 0,
     activeLeads: 0,
@@ -197,7 +199,7 @@ export default function AdminDashboard() {
   async function handleUpdateGlobalMargin() {
     const value = parseFloat(editingMargin)
     if (isNaN(value) || value < 0 || value > 100) {
-      alert('Please enter a valid margin percentage (0-100)')
+      addToast('Please enter a valid margin percentage (0-100)', 'warning')
       return
     }
 
@@ -207,11 +209,11 @@ export default function AdminDashboard() {
     })
 
     if (error) {
-      alert('Error updating margin: ' + error.message)
+      addToast('Error updating margin: ' + error.message, 'error')
     } else {
       setGlobalMargin(editingMargin)
       setShowMarginModal(false)
-      alert('Global target margin updated to ' + value + '%\n\nThis will only apply to new projects created after this change.')
+      addToast('Global target margin updated to ' + value + '% (applies to new projects only)', 'success')
     }
   }
 

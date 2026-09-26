@@ -7,6 +7,7 @@ import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { SkeletonTable } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
+import StatusBadge from '../components/StatusBadge'
 import DragDropUpload from '../components/DragDropUpload'
 import Spinner from '../components/Spinner'
 import type { Contact, Quotation, QuotationLineItem, CatalogItem } from '../types/database'
@@ -176,7 +177,7 @@ export default function QuotationsPage() {
         }
       })
       .catch(err => {
-        alert('Camera access denied. Please allow camera permissions.')
+        addToast('Camera access denied. Please allow camera permissions.', 'warning')
         console.error('Camera error:', err)
         setShowCamera(false)
       })
@@ -210,13 +211,13 @@ export default function QuotationsPage() {
 
     const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf']
     if (!allowedTypes.includes(file.type)) {
-      alert('Please select a JPG, PNG, or PDF file')
+      addToast('Please select a JPG, PNG, or PDF file', 'warning')
       e.target.value = ''
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB')
+      addToast('File size must be less than 10MB', 'warning')
       e.target.value = ''
       return
     }
@@ -245,11 +246,11 @@ export default function QuotationsPage() {
 
     for (const file of files) {
       if (!allowedTypes.includes(file.type)) {
-        alert('Please select JPG, PNG, or PDF files only')
+        addToast('Please select JPG, PNG, or PDF files only', 'warning')
         return
       }
       if (file.size > maxSize) {
-        alert('File size must be less than 10MB')
+        addToast('File size must be less than 10MB', 'warning')
         return
       }
     }
@@ -424,7 +425,7 @@ export default function QuotationsPage() {
     }).select().single()
 
     if (quoteError || !quoteData) { 
-      alert('Error: ' + quoteError?.message)
+      addToast('Error: ' + quoteError?.message, 'error')
       addToast('Failed to create quotation', 'error')
       return 
     }
@@ -440,7 +441,7 @@ export default function QuotationsPage() {
     }))
     const { error: linesError } = await supabase.from('quotation_line_items').insert(lineItems)
     if (linesError) { 
-      alert('Error adding line items: ' + linesError.message)
+      addToast('Error adding line items: ' + linesError.message, 'error')
       addToast('Failed to add line items', 'error')
       return 
     }
@@ -519,14 +520,14 @@ export default function QuotationsPage() {
 
     const { error: quoteErr } = await supabase.from('quotations').update({ admin_locked: true, client_approved: true }).eq('id', quotation.id)
     if (quoteErr) { 
-      alert('Error locking quotation: ' + quoteErr.message)
+      addToast('Error locking quotation: ' + quoteErr.message, 'error')
       addToast('Failed to lock quotation', 'error')
       return 
     }
 
     const { error: leadErr } = await supabase.from('contacts').update({ lead_status: 'confirmed' }).eq('id', quotation.lead_id)
     if (leadErr) { 
-      alert('Error updating lead status: ' + leadErr.message)
+      addToast('Error updating lead status: ' + leadErr.message, 'error')
       addToast('Failed to update lead status', 'error')
       return 
     }
@@ -541,7 +542,7 @@ export default function QuotationsPage() {
       status: 'in_progress'
     })
     if (projErr) {
-      alert('❌ Error creating project: ' + projErr.message + '\n\nCheck: Did you run the RLS fix SQL in Supabase? The admin needs INSERT permission on the projects table.')
+      addToast('Error creating project: ' + projErr.message + ' — ensure the RLS fix SQL has been run in Supabase', 'error')
       addToast('Failed to create project', 'error')
       return
     }
@@ -571,7 +572,7 @@ export default function QuotationsPage() {
 
     const { error } = await supabase.from('quotations').update({ admin_locked: false, client_approved: false }).eq('id', quotation.id)
     if (error) { 
-      alert('Error unlocking quotation: ' + error.message)
+      addToast('Error unlocking quotation: ' + error.message, 'error')
       addToast('Failed to unlock quotation', 'error')
       return 
     }
@@ -599,11 +600,11 @@ export default function QuotationsPage() {
   }
 
   const statusBadge = (q: Quotation): ReactElement => {
-    if (q.admin_locked) return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">✅ Locked</span>
-    if (q.client_approved) return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⏳ Pending Admin</span>
-    if (q.is_selected) return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Selected</span>
-    if (q.is_archived) return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600">Archived</span>
-    return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">Draft</span>
+    if (q.admin_locked) return <StatusBadge tone="green">Locked</StatusBadge>
+    if (q.client_approved) return <StatusBadge tone="yellow">Pending Admin</StatusBadge>
+    if (q.is_selected) return <StatusBadge tone="blue">Selected</StatusBadge>
+    if (q.is_archived) return <StatusBadge tone="gray">Archived</StatusBadge>
+    return <StatusBadge tone="gray">Draft</StatusBadge>
   }
 
   const pendingCount = quotations.filter(q => q.client_approved && !q.admin_locked).length
@@ -1071,7 +1072,7 @@ export default function QuotationsPage() {
 
                       // Block deletion if locked (has project)
                       if (selectedQuotation.admin_locked) {
-                        alert('Cannot delete this quotation — it is locked and has an associated project. Unlock it first.')
+                        addToast('Cannot delete this quotation — it is locked and has an associated project. Unlock it first.', 'warning')
                         return
                       }
 
@@ -1082,7 +1083,7 @@ export default function QuotationsPage() {
 
                         const { error } = await supabase.from('quotations').delete().eq('id', selectedQuotation.id)
                         if (error) {
-                          alert('Error deleting quotation: ' + error.message)
+                          addToast('Error deleting quotation: ' + error.message, 'error')
                           addToast('Failed to delete quotation', 'error')
                           return
                         }

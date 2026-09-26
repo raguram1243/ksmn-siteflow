@@ -129,7 +129,7 @@ export default function SiteVisitsPage() {
         }
       })
       .catch(err => {
-        alert('Camera access denied. Please allow camera permissions.')
+        addToast('Camera access denied. Please allow camera permissions.', 'warning')
         console.error('Camera error:', err)
         setShowCamera(false)
       })
@@ -163,13 +163,13 @@ export default function SiteVisitsPage() {
 
     const allowedTypes = ['image/jpeg', 'image/png']
     if (!allowedTypes.includes(file.type)) {
-      alert('Please select a JPG or PNG file')
+      addToast('Please select a JPG or PNG file', 'warning')
       e.target.value = ''
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB')
+      addToast('File size must be less than 10MB', 'warning')
       e.target.value = ''
       return
     }
@@ -187,11 +187,11 @@ export default function SiteVisitsPage() {
 
     for (const file of files) {
       if (!allowedTypes.includes(file.type)) {
-        alert('Please select JPG or PNG files only')
+        addToast('Please select JPG or PNG files only', 'warning')
         return
       }
       if (file.size > maxSize) {
-        alert('File size must be less than 10MB')
+        addToast('File size must be less than 10MB', 'warning')
         return
       }
     }
@@ -233,7 +233,7 @@ export default function SiteVisitsPage() {
       setGpsLat(pos.coords.latitude)
       setGpsLng(pos.coords.longitude)
     } catch (err: any) {
-      alert('Could not get GPS: ' + err.message)
+      addToast('Could not get GPS: ' + err.message, 'error')
     }
     setGpsLoading(false)
   }
@@ -516,7 +516,7 @@ export default function SiteVisitsPage() {
                     try {
                       const { error } = await supabase.from('site_visits').delete().eq('id', selectedVisit.id)
                       if (error) {
-                        alert('Error deleting site visit: ' + error.message)
+                        addToast('Error deleting site visit: ' + error.message, 'error')
                         addToast('Failed to delete site visit', 'error')
                         return
                       }

@@ -6,7 +6,9 @@ import { useDebounce } from '../hooks/useDebounce'
 import { SkeletonList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
+import StatusBadge from '../components/StatusBadge'
 import Spinner from '../components/Spinner'
+import PromptModal from '../components/PromptModal'
 
 export default function PaymentsPage() {
   const { user, role } = useAuth()
@@ -25,6 +27,7 @@ export default function PaymentsPage() {
   const [generatingReceipt, setGeneratingReceipt] = useState(false)
   const [selectedOverdue, setSelectedOverdue] = useState<any>(null)
   const [showOverdueDetail, setShowOverdueDetail] = useState(false)
+  const [rejectingPaymentId, setRejectingPaymentId] = useState<string | null>(null)
 
   // Add payment form
   const [formProject, setFormProject] = useState('')
@@ -146,11 +149,11 @@ export default function PaymentsPage() {
   function getStatusBadge(status: string) {
     switch (status) {
       case 'pending':
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⏳ Pending</span>
+        return <StatusBadge tone="yellow">Pending</StatusBadge>
       case 'approved':
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">✅ Approved</span>
+        return <StatusBadge tone="green">Approved</StatusBadge>
       case 'rejected':
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">❌ Rejected</span>
+        return <StatusBadge tone="red">Rejected</StatusBadge>
       default:
         return null
     }
@@ -267,7 +270,7 @@ export default function PaymentsPage() {
     if (!formProject || !user) return
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) {
-      alert('Please enter a valid amount')
+      addToast('Please enter a valid amount', 'warning')
       return
     }
     setSubmitting(true)
@@ -282,7 +285,7 @@ export default function PaymentsPage() {
     }).select('id').single()
 
     if (error) {
-      alert('Error: ' + error.message)
+      addToast('Error: ' + error.message, 'error')
       addToast('Failed to add payment', 'error')
       setSubmitting(false)
       return
@@ -328,7 +331,7 @@ export default function PaymentsPage() {
 
       const { error } = await supabase.from('project_payments').delete().eq('id', id)
       if (error) {
-        alert('Error deleting payment: ' + error.message)
+        addToast('Error deleting payment: ' + error.message, 'error')
         addToast('Failed to delete payment', 'error')
         return
       }
@@ -441,12 +444,7 @@ export default function PaymentsPage() {
                       Approve
                     </button>
                     <button
-                      onClick={() => {
-                        const reason = prompt('Enter rejection reason:')
-                        if (reason !== null) {
-                          handleRejectPayment(payment.id, reason)
-                        }
-                      }}
+                      onClick={() => setRejectingPaymentId(payment.id)}
                       className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
                     >
                       Reject
@@ -696,6 +694,22 @@ export default function PaymentsPage() {
           )
         })()}
       </Modal>
+
+      {/* Reject Reason Modal */}
+      <PromptModal
+        isOpen={rejectingPaymentId !== null}
+        title="Reject Payment"
+        message="Please provide a reason so the submitter knows what to correct."
+        label="Rejection reason"
+        confirmLabel="Reject Payment"
+        multiline
+        onCancel={() => setRejectingPaymentId(null)}
+        onConfirm={(reason) => {
+          const id = rejectingPaymentId
+          setRejectingPaymentId(null)
+          if (id) handleRejectPayment(id, reason)
+        }}
+      />
 
       {/* Receipt Viewer Modal */}
       <Modal isOpen={showReceipt} onClose={() => { setShowReceipt(false); setReceiptUrl(null); }}>

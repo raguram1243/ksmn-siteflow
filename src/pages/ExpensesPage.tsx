@@ -7,8 +7,10 @@ import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { SkeletonList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
+import StatusBadge from '../components/StatusBadge'
 import DragDropUpload from '../components/DragDropUpload'
 import Spinner from '../components/Spinner'
+import PromptModal from '../components/PromptModal'
 
 const MAX_FILES = 3
 
@@ -35,6 +37,7 @@ export default function ExpensesPage() {
   const [selectedExpense, setSelectedExpense] = useState<any>(null)
   const [showExpenseDetail, setShowExpenseDetail] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [rejectingExpenseId, setRejectingExpenseId] = useState<string | null>(null)
   const [showCamera, setShowCamera] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -191,20 +194,17 @@ export default function ExpensesPage() {
   }
 
   function promptRejectExpense(expenseId: string) {
-    const reason = prompt('Enter rejection reason:')
-    if (reason !== null) {
-      handleRejectExpense(expenseId, reason)
-    }
+    setRejectingExpenseId(expenseId)
   }
 
   function getStatusBadge(status: string) {
     switch (status) {
       case 'pending':
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⏳ Pending</span>
+        return <StatusBadge tone="yellow">Pending</StatusBadge>
       case 'approved':
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">✅ Approved</span>
+        return <StatusBadge tone="green">Approved</StatusBadge>
       case 'rejected':
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">❌ Rejected</span>
+        return <StatusBadge tone="red">Rejected</StatusBadge>
       default:
         return null
     }
@@ -227,7 +227,7 @@ export default function ExpensesPage() {
         }
       })
       .catch(err => {
-        alert('Camera access denied. Please allow camera permissions.')
+        addToast('Camera access denied. Please allow camera permissions.', 'warning')
         console.error('Camera error:', err)
         setShowCamera(false)
       })
@@ -279,13 +279,13 @@ export default function ExpensesPage() {
 
     const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf']
     if (!allowedTypes.includes(file.type)) {
-      alert('Please select a JPG, PNG, or PDF file')
+      addToast('Please select a JPG, PNG, or PDF file', 'warning')
       e.target.value = ''
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB')
+      addToast('File size must be less than 10MB', 'warning')
       e.target.value = ''
       return
     }
@@ -313,11 +313,11 @@ export default function ExpensesPage() {
 
     for (const file of files) {
       if (!allowedTypes.includes(file.type)) {
-        alert('Please select JPG, PNG, or PDF files only')
+        addToast('Please select JPG, PNG, or PDF files only', 'warning')
         return
       }
       if (file.size > maxSize) {
-        alert('File size must be less than 10MB')
+        addToast('File size must be less than 10MB', 'warning')
         return
       }
     }
@@ -441,7 +441,7 @@ export default function ExpensesPage() {
 
     const totalAmount = getLineItemsTotal()
     if (totalAmount <= 0) {
-      alert('Please enter at least one line item with a valid amount')
+      addToast('Please enter at least one line item with a valid amount', 'warning')
       setSubmitting(false)
       return
     }
@@ -449,7 +449,7 @@ export default function ExpensesPage() {
     // Validate that at least one line item has a description
     const hasDescription = formLineItems.some(line => line.description.trim() !== '')
     if (!hasDescription) {
-      alert('Please enter at least one line item description')
+      addToast('Please enter at least one line item description', 'warning')
       setSubmitting(false)
       return
     }
@@ -469,7 +469,7 @@ export default function ExpensesPage() {
     }).select('id, status').single()
 
     if (error) {
-      alert('Error: ' + error.message)
+      addToast('Error: ' + error.message, 'error')
       addToast('Failed to add expense', 'error')
       setSubmitting(false)
       return
@@ -548,7 +548,7 @@ export default function ExpensesPage() {
 
       const { error } = await supabase.from('expense_entries').delete().eq('id', id)
       if (error) {
-        alert('Error deleting expense: ' + error.message)
+        addToast('Error deleting expense: ' + error.message, 'error')
         addToast('Failed to delete expense', 'error')
         return
       }
@@ -959,6 +959,22 @@ export default function ExpensesPage() {
           </div>
         )}
       </Modal>
+
+      {/* Reject Reason Modal */}
+      <PromptModal
+        isOpen={rejectingExpenseId !== null}
+        title="Reject Expense"
+        message="Please provide a reason so the submitter knows what to correct."
+        label="Rejection reason"
+        confirmLabel="Reject Expense"
+        multiline
+        onCancel={() => setRejectingExpenseId(null)}
+        onConfirm={(reason) => {
+          const id = rejectingExpenseId
+          setRejectingExpenseId(null)
+          if (id) handleRejectExpense(id, reason)
+        }}
+      />
 
       {/* Add Expense Modal */}
       <Modal isOpen={showAdd} onClose={closeAddModal}>

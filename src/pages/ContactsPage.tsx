@@ -6,6 +6,7 @@ import type { Contact, ContactStatus } from '../types/database'
 import { SkeletonList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
+import StatusBadge from '../components/StatusBadge'
 import CopyButton from '../components/CopyButton'
 import Spinner from '../components/Spinner'
 
@@ -227,7 +228,7 @@ export default function ContactsPage() {
 
     if (siteVisits && siteVisits.length > 0) {
       resetDeleteState()
-      alert('Cannot delete this contact — it has site visits logged. Delete the site visits first.')
+      addToast('Cannot delete this contact — it has site visits logged. Delete the site visits first.', 'warning')
       return
     }
 
@@ -240,7 +241,7 @@ export default function ContactsPage() {
 
       if (quotations && quotations.length > 0) {
         resetDeleteState()
-        alert('Cannot delete this contact — it has quotations attached. Archive or remove the quotations first.')
+        addToast('Cannot delete this contact — it has quotations attached. Archive or remove the quotations first.', 'warning')
         return
       }
     }
@@ -270,7 +271,7 @@ export default function ContactsPage() {
       const { error } = await supabase.from('contacts').delete().eq('id', contact.id)
       resetDeleteState()
       if (error) {
-        alert('Error deleting contact: ' + error.message)
+        addToast('Error deleting contact: ' + error.message, 'error')
         addToast('Failed to delete contact', 'error')
       } else {
         setShowNotes(false)
@@ -296,19 +297,11 @@ export default function ContactsPage() {
   }
 
   const statusBadge = (contact: Contact) => {
-    if (contact.is_lead) {
-      return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Lead</span>
-    }
-    if (contact.initial_reaction === 'interested') {
-      return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Interested</span>
-    }
-    if (contact.initial_reaction === 'not_interested') {
-      return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Not Interested</span>
-    }
-    if (contact.initial_reaction === 'thinking') {
-      return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Thinking</span>
-    }
-    return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{contact.initial_reaction}</span>
+    if (contact.is_lead) return <StatusBadge tone="green">Lead</StatusBadge>
+    if (contact.initial_reaction === 'interested') return <StatusBadge tone="yellow">Interested</StatusBadge>
+    if (contact.initial_reaction === 'not_interested') return <StatusBadge tone="red">Not Interested</StatusBadge>
+    if (contact.initial_reaction === 'thinking') return <StatusBadge tone="blue">Thinking</StatusBadge>
+    return <StatusBadge>{contact.initial_reaction}</StatusBadge>
   }
 
   return (

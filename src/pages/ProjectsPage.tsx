@@ -6,6 +6,8 @@ import { useDebounce } from '../hooks/useDebounce'
 import { SkeletonList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
+import StatusBadge from '../components/StatusBadge'
+import PromptModal from '../components/PromptModal'
 import type { Project, ExpenseEntry, ProjectProfitView } from '../types/database'
 
 export default function ProjectsPage() {
@@ -40,6 +42,9 @@ export default function ProjectsPage() {
   const [adjustNewValue, setAdjustNewValue] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
   const [adjustSubmitting, setAdjustSubmitting] = useState(false)
+
+  // Target margin prompt
+  const [marginPrompt, setMarginPrompt] = useState<{ projectId: string; current: number } | null>(null)
 
   // Debounce search to avoid excessive API calls
   const debouncedSearch = useDebounce(search, 300)
@@ -172,7 +177,7 @@ export default function ProjectsPage() {
     if (!selectedProject || !user) return
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) {
-      alert('Please enter a valid amount')
+      addToast('Please enter a valid amount', 'warning')
       return
     }
     setPaymentSubmitting(true)
@@ -187,7 +192,7 @@ export default function ProjectsPage() {
     }).select('id').single()
 
     if (error) {
-      alert('Error: ' + error.message)
+      addToast('Error: ' + error.message, 'error')
       addToast('Failed to add payment', 'error')
       setPaymentSubmitting(false)
       return
@@ -220,11 +225,11 @@ export default function ProjectsPage() {
     if (!selectedProject || !user) return
     const newValue = parseFloat(adjustNewValue)
     if (isNaN(newValue) || newValue <= 0) {
-      alert('Please enter a valid positive amount')
+      addToast('Please enter a valid positive amount', 'warning')
       return
     }
     if (newValue >= getEffectiveQuotationValue(selectedProject)) {
-      alert('New value must be LESS than the current value to apply a discount. Use a lower amount.')
+      addToast('New value must be LESS than the current value to apply a discount. Use a lower amount.', 'warning')
       return
     }
     setAdjustSubmitting(true)
@@ -241,7 +246,7 @@ export default function ProjectsPage() {
     })
 
     if (adjError) {
-      alert('Error: ' + adjError.message)
+      addToast('Error: ' + adjError.message, 'error')
       setAdjustSubmitting(false)
       return
     }
@@ -253,7 +258,7 @@ export default function ProjectsPage() {
       .eq('id', selectedProject.id)
 
     if (updateError) {
-      alert('Error updating value: ' + updateError.message)
+      addToast('Error updating value: ' + updateError.message, 'error')
       setAdjustSubmitting(false)
       return
     }
@@ -296,7 +301,7 @@ export default function ProjectsPage() {
     }).eq('id', projectId)
 
     if (error) {
-      alert('Error closing project: ' + error.message)
+      addToast('Error closing project: ' + error.message, 'error')
       addToast('Failed to close project', 'error')
       return
     }
@@ -319,7 +324,7 @@ export default function ProjectsPage() {
     }).eq('id', projectId)
     
     if (error) {
-      alert('Error reopening project: ' + error.message)
+      addToast('Error reopening project: ' + error.message, 'error')
       addToast('Failed to reopen project', 'error')
       return
     }
@@ -332,26 +337,31 @@ export default function ProjectsPage() {
   }
 
   async function handleUpdateProjectMargin(projectId: string, currentMargin: number) {
-    const newMargin = prompt('Enter new target margin % for this project:', currentMargin.toString())
-    if (newMargin === null) return
-    
-    const value = parseFloat(newMargin)
+    setMarginPrompt({ projectId, current: currentMargin })
+  }
+
+  async function saveProjectMargin(raw: string) {
+    const ctx = marginPrompt
+    setMarginPrompt(null)
+    if (!ctx) return
+
+    const value = parseFloat(raw)
     if (isNaN(value) || value < 0 || value > 100) {
-      alert('Please enter a valid margin percentage (0-100)')
+      addToast('Please enter a valid margin percentage (0-100)', 'warning')
       return
     }
 
     const { error } = await supabase
       .from('projects')
       .update({ target_margin_percent: value })
-      .eq('id', projectId)
+      .eq('id', ctx.projectId)
 
     if (error) {
-      alert('Error updating project margin: ' + error.message)
+      addToast('Error updating project margin: ' + error.message, 'error')
     } else {
-      alert('Project target margin updated to ' + value + '%')
+      addToast('Project target margin updated to ' + value + '%', 'success')
       fetchProjects()
-      if (selectedProject?.id === projectId) {
+      if (selectedProject?.id === ctx.projectId) {
         setSelectedProject({ ...selectedProject, target_margin_percent: value } as Project)
       }
     }
@@ -372,28 +382,28 @@ export default function ProjectsPage() {
   }
 
   const statusBadge = (status: string) => {
-    if (status === 'closed') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-600">Closed</span>
-    if (status === 'in_progress') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">In Progress</span>
-    return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">{status}</span>
+    if (status === 'closed') return <StatusBadge tone="gray">Closed</StatusBadge>
+    if (status === 'in_progress') return <StatusBadge tone="blue">In Progress</StatusBadge>
+    return <StatusBadge>{status}</StatusBadge>
   }
 
   const marginStatusBadge = (status: string) => {
-    if (status === 'above_target') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">✅ Above Target</span>
-    if (status === 'on_target') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">🎯 On Target</span>
-    if (status === 'below_target') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⚠ Below Target</span>
-    if (status === 'loss') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">🔴 Loss</span>
-    return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">No Data</span>
+    if (status === 'above_target') return <StatusBadge tone="green">Above Target</StatusBadge>
+    if (status === 'on_target') return <StatusBadge tone="blue">On Target</StatusBadge>
+    if (status === 'below_target') return <StatusBadge tone="yellow">Below Target</StatusBadge>
+    if (status === 'loss') return <StatusBadge tone="red">Loss</StatusBadge>
+    return <StatusBadge>No Data</StatusBadge>
   }
 
   const paymentModeBadge = (mode: string) => {
-    const colors: Record<string, string> = { cash: 'bg-green-100 text-green-800', upi: 'bg-blue-100 text-blue-800', bank_transfer: 'bg-purple-100 text-purple-800' }
-    return <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${colors[mode] || 'bg-gray-100 text-gray-600'}`}>{mode.replace('_', ' ')}</span>
+    const tone = mode === 'cash' ? 'green' : mode === 'upi' ? 'blue' : mode === 'bank_transfer' ? 'purple' : 'gray'
+    return <StatusBadge tone={tone}>{mode.replace('_', ' ')}</StatusBadge>
   }
 
   const getStatusBadge = (status: string) => {
-    if (status === 'pending') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⏳ Pending</span>
-    if (status === 'approved') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">✅ Approved</span>
-    if (status === 'rejected') return <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">❌ Rejected</span>
+    if (status === 'pending') return <StatusBadge tone="yellow">Pending</StatusBadge>
+    if (status === 'approved') return <StatusBadge tone="green">Approved</StatusBadge>
+    if (status === 'rejected') return <StatusBadge tone="red">Rejected</StatusBadge>
     return null
   }
 
@@ -851,6 +861,21 @@ export default function ProjectsPage() {
           </button>
         </div>
       </Modal>
+
+      {/* Change Target Margin Modal */}
+      <PromptModal
+        isOpen={marginPrompt !== null}
+        title="Change Target Margin"
+        message="This is the profit margin you'll aim for on this project. Actual margin is calculated from expenses."
+        label="Target margin (%)"
+        confirmLabel="Save Target"
+        type="number"
+        min={0}
+        max={100}
+        initialValue={marginPrompt ? String(marginPrompt.current) : ''}
+        onCancel={() => setMarginPrompt(null)}
+        onConfirm={saveProjectMargin}
+      />
 
       {/* Expense Detail Modal */}
       <Modal isOpen={showExpenseDetail} onClose={() => { setShowExpenseDetail(false); setSelectedExpense(null) }}>
