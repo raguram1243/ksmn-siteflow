@@ -1,0 +1,524 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark Mode CSS Variables */
+:root {
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+}
+
+.dark {
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --border-color: #374151;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dark .bg-white {
+  background-color: var(--bg-secondary);
+}
+
+.dark .bg-gray-50 {
+  background-color: var(--bg-tertiary);
+}
+
+.dark .bg-gray-100 {
+  background-color: #374151;
+}
+
+.dark .text-gray-900 {
+  color: var(--text-primary);
+}
+
+.dark .text-gray-700 {
+  color: var(--text-primary);
+}
+
+.dark .text-gray-600 {
+  color: var(--text-secondary);
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+
+.dark .text-gray-400 {
+  color: #6b7280;
+}
+
+.dark .border-gray-200 {
+  border-color: var(--border-color);
+}
+
+.dark .border-gray-300 {
+  border-color: var(--border-color);
+}
+
+.dark .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.dark .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+/* Status badges in dark mode */
+.dark .bg-green-100 {
+  background-color: rgba(34, 197, 94, 0.2);
+}
+
+.dark .text-green-800 {
+  color: #86efac;
+}
+
+.dark .bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+.dark .text-red-800 {
+  color: #fca5a5;
+}
+
+.dark .bg-yellow-100 {
+  background-color: rgba(234, 179, 8, 0.2);
+}
+
+.dark .text-yellow-800 {
+  color: #fde047;
+}
+
+.dark .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark .text-blue-800 {
+  color: #93c5fd;
+}
+
+.dark .bg-purple-100 {
+  background-color: rgba(168, 85, 247, 0.2);
+}
+
+.dark .text-purple-800 {
+  color: #d8b4fe;
+}
+
+/* Toast Animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-slide-out {
+  animation: slideOut 0.3s ease-out;
+}
+
+/* Validation Shake Animation */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Modal Animations */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes modalFadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.modal-animate-in {
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.modal-animate-out {
+  animation: modalFadeOut 0.2s ease-out;
+}
+
+/* Skeleton Loading Animation */
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+}
+
+/* Success Checkmark Animation */
+@keyframes checkmark {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-checkmark {
+  animation: checkmark 0.4s ease-out;
+}
+
+/* Count-up animation helper */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-count-up {
+  animation: countUp 0.6s ease-out;
+}
+
+/* Pull to refresh indicator */
+@keyframes pullRefresh {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-pull-refresh {
+  animation: pullRefresh 1s linear infinite;
+}
+
+/* Mobile tap target improvements */
+@media (max-width: 768px) {
+  button, 
+  input, 
+  select, 
+  textarea {
+    min-height: 44px;
+  }
+  
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+}
+
+/* Draft saved indicator animation */
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.animate-draft-saved {
+  animation: fadeInOut 2s ease-in-out;
+}
+
+/* Search spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Offline banner breathing animation */
+@keyframes breathe {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 2s ease-in-out infinite;
+}
+
+/* =========================================================================
+   LOGIN PAGE — Animated Aurora Background (pure CSS, no WebGL)
+   Inspired by React Bits "Aurora" but lightweight & business-appropriate.
+   Scoped to .login-aurora-* classes so it only affects the login page.
+   ========================================================================= */
+
+.login-aurora-bg {
+  background-color: #eef2f7;
+}
+
+.dark .login-aurora-bg {
+  background-color: #0f172a;
+}
+
+/* Base gradient wash — soft, muted blue/grey */
+.login-aurora-base {
+  background: radial-gradient(
+      ellipse at 20% 30%,
+      rgba(59, 89, 152, 0.12) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 70%,
+      rgba(100, 116, 139, 0.10) 0%,
+      transparent 50%
+    ),
+    linear-gradient(135deg, #eef2f7 0%, #e2e8f0 100%);
+}
+
+.dark .login-aurora-base {
+  background: radial-gradient(
+      ellipse at 20% 30%,
+      rgba(30, 58, 95, 0.25) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 70%,
+      rgba(51, 65, 85, 0.20) 0%,
+      transparent 50%
+    ),
+    linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+/* Animated blurred gradient blobs — slow, subtle movement */
+.login-aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.dark .login-aurora-blob {
+  opacity: 0.4;
+}
+
+.login-aurora-blob--1 {
+  width: 45vw;
+  height: 45vw;
+  max-width: 600px;
+  max-height: 600px;
+  top: -10%;
+  left: -5%;
+  background: radial-gradient(circle, rgba(59, 89, 152, 0.35) 0%, transparent 70%);
+  animation: loginAuroraDrift1 28s ease-in-out infinite;
+}
+
+.dark .login-aurora-blob--1 {
+  background: radial-gradient(circle, rgba(37, 56, 99, 0.45) 0%, transparent 70%);
+}
+
+.login-aurora-blob--2 {
+  width: 40vw;
+  height: 40vw;
+  max-width: 500px;
+  max-height: 500px;
+  bottom: -10%;
+  right: -5%;
+  background: radial-gradient(circle, rgba(100, 116, 139, 0.30) 0%, transparent 70%);
+  animation: loginAuroraDrift2 32s ease-in-out infinite;
+}
+
+.dark .login-aurora-blob--2 {
+  background: radial-gradient(circle, rgba(51, 65, 85, 0.40) 0%, transparent 70%);
+}
+
+.login-aurora-blob--3 {
+  width: 35vw;
+  height: 35vw;
+  max-width: 450px;
+  max-height: 450px;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(147, 167, 197, 0.20) 0%, transparent 70%);
+  animation: loginAuroraDrift3 36s ease-in-out infinite;
+}
+
+.dark .login-aurora-blob--3 {
+  background: radial-gradient(circle, rgba(71, 85, 105, 0.30) 0%, transparent 70%);
+}
+
+/* Vignette — keeps the center area readable for the login card */
+.login-aurora-vignette {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    transparent 40%,
+    rgba(238, 242, 247, 0.3) 100%
+  );
+}
+
+.dark .login-aurora-vignette {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    transparent 40%,
+    rgba(15, 23, 42, 0.4) 100%
+  );
+}
+
+@keyframes loginAuroraDrift1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(8vw, 6vh) scale(1.1);
+  }
+  66% {
+    transform: translate(-4vw, 10vh) scale(0.95);
+  }
+}
+
+@keyframes loginAuroraDrift2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-6vw, -8vh) scale(1.05);
+  }
+  66% {
+    transform: translate(5vw, -4vh) scale(1.1);
+  }
+}
+
+@keyframes loginAuroraDrift3 {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  33% {
+    transform: translate(-45%, -55%) scale(1.08);
+  }
+  66% {
+    transform: translate(-55%, -45%) scale(0.92);
+  }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .login-aurora-blob {
+    animation: none !important;
+  }
+  .login-animated-word {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* =========================================================================
+   LOGIN PAGE — Animated Text (fade-in + slide-up, staggered by word)
+   Inspired by React Bits "SplitText" but pure CSS, no GSAP.
+   ========================================================================= */
+
+.login-animated-text {
+  /* Container — no animation itself, just holds the words */
+}
+
+.login-animated-word {
+  opacity: 0;
+  transform: translateY(12px);
+  animation-name: loginWordFadeUp;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: forwards;
+}
+
+@keyframes loginWordFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

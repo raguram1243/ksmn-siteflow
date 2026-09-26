@@ -1,0 +1,61 @@
+/* Print Styles - Hide non-essential elements */
+@media print {
+  /* Hide sidebar, header, buttons, and navigation */
+  nav,
+  header,
+  .no-print,
+  button,
+  .fixed,
+  aside,
+  footer {
+    display: none !important;
+  }
+
+  /* Show only main content */
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 20px !important;
+    max-width: 100% !important;
+  }
+
+  /* Clean typography */
+  * {
+    color: black !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  /* Ensure good contrast */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  table th,
+  table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+  }
+
+  table th {
+    background: #f0f0f0 !important;
+    font-weight: bold;
+  }
+
+  /* Page breaks */
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+
+  table,
+  tr {
+    page-break-inside: avoid;
+  }
+}
