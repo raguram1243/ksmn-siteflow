@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
-import { SkeletonDashboard, SkeletonList } from '../components/Skeleton'
+import { SkeletonDashboard } from '../components/Skeleton'
 import MarginTrendChart from '../components/MarginTrendChart'
 import Modal from '../components/Modal'
 import type { Project, PendingApproval } from '../types/database'
@@ -14,7 +13,6 @@ import BreakdownDonut from '../components/BreakdownDonut'
 const humanize = (s: string) => (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
 export default function AdminDashboard() {
-  const { profile } = useAuth()
   const [stats, setStats] = useState({
     totalContacts: 0,
     activeLeads: 0,
@@ -214,29 +212,6 @@ export default function AdminDashboard() {
       setGlobalMargin(editingMargin)
       setShowMarginModal(false)
       alert('Global target margin updated to ' + value + '%\n\nThis will only apply to new projects created after this change.')
-    }
-  }
-
-  async function handleUpdateProjectMargin(projectId: string, currentMargin: number) {
-    const newMargin = prompt('Enter new target margin % for this project:', currentMargin.toString())
-    if (newMargin === null) return
-
-    const value = parseFloat(newMargin)
-    if (isNaN(value) || value < 0 || value > 100) {
-      alert('Please enter a valid margin percentage (0-100)')
-      return
-    }
-
-    const { error } = await supabase
-      .from('projects')
-      .update({ target_margin_percent: value })
-      .eq('id', projectId)
-
-    if (error) {
-      alert('Error updating project margin: ' + error.message)
-    } else {
-      alert('Project target margin updated to ' + value + '%')
-      fetchStats(true)
     }
   }
 

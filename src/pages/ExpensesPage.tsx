@@ -50,7 +50,7 @@ export default function ExpensesPage() {
     formBillFiles.length > 0
   )
 
-  const { handleNavigation } = useUnsavedChanges(hasUnsavedChanges)
+  useUnsavedChanges(hasUnsavedChanges)
 
   // Admin-only stats
   const [expenseMonthly, setExpenseMonthly] = useState({ this_month_total: 0, last_month_total: 0, this_month_count: 0, last_month_count: 0 })

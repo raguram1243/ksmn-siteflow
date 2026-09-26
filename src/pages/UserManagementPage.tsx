@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../contexts/ToastContext'
 import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
@@ -13,7 +12,6 @@ interface User extends Profile {
 }
 
 export default function UserManagementPage() {
-  const { profile } = useAuth()
   const { addToast, addUndoToast } = useToast()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -29,7 +27,6 @@ export default function UserManagementPage() {
   const [formFullName, setFormFullName] = useState('')
   const [formRole, setFormRole] = useState<'admin' | 'rep'>('rep')
   const [formPassword, setFormPassword] = useState('')
-  const [tempPassword, setTempPassword] = useState('')
 
   useEffect(() => {
     fetchUsers()

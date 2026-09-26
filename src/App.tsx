@@ -20,39 +20,6 @@ import { ToastProvider } from './contexts/ToastContext'
 import { DarkModeProvider } from './contexts/DarkModeContext'
 import { WhatsNewProvider } from './contexts/WhatsNewContext'
 
-// Auto-refresh component
-function AutoRefresh() {
-  useEffect(() => {
-    let intervalId: ReturnType<typeof setInterval>
-
-    async function autoRefresh() {
-      // Only refresh if tab is visible
-      if (document.visibilityState === 'visible') {
-        window.dispatchEvent(new CustomEvent('app-refresh'))
-      }
-    }
-
-    // Auto-refresh every 5 minutes
-    intervalId = setInterval(autoRefresh, 5 * 60 * 1000)
-
-    // Refresh immediately when tab becomes visible
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        window.dispatchEvent(new CustomEvent('app-refresh'))
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      clearInterval(intervalId)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [])
-
-  return null
-}
-
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) {
   const { user, profile, loading } = useAuth()
 

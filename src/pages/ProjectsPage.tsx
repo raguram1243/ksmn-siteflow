@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../contexts/ToastContext'
 import { useDebounce } from '../hooks/useDebounce'
-import { SkeletonList, SkeletonDetail } from '../components/Skeleton'
+import { SkeletonList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
 import type { Project, ExpenseEntry, ProjectProfitView } from '../types/database'
@@ -94,9 +94,6 @@ export default function ProjectsPage() {
     setPayments([])
     setAdjustments([])
     setProfitData(null)
-
-    // Calculate effective quotation value
-    const effectiveValue = project.adjusted_quotation_value || project.baseline_quotation_value
 
     // Fetch expenses
     const { data: expData, error: expError } = await supabase

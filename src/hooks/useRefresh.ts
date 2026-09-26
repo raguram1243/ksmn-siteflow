@@ -26,7 +26,6 @@ export function useRefresh(refreshFn: () => Promise<void> | void): RefreshState 
   // Auto-refresh every 5 minutes when tab is visible
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval>
-    let visibilityTimeout: ReturnType<typeof setTimeout>
 
     async function autoRefresh() {
       // Only auto-refresh if tab is visible

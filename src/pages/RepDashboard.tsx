@@ -34,13 +34,11 @@ export default function RepDashboard() {
     setLoading(true)
     const today = new Date().toISOString().split('T')[0]
 
-    const [contactsRes, leadsRes, quotesPending, quotesApproved, visitsRes, projectsRes] = await Promise.all([
+    const [contactsRes, leadsRes, quotesPending, visitsRes, projectsRes] = await Promise.all([
       supabase.from('contacts').select('id', { count: 'exact', head: true }),
       supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('is_lead', true),
       // Quotations that are client-approved but NOT yet admin-locked = pending admin approval
       supabase.from('quotations').select('id', { count: 'exact', head: true }).eq('client_approved', true).eq('admin_locked', false),
-      // Quotations that are locked = approved
-      supabase.from('quotations').select('id', { count: 'exact', head: true }).eq('admin_locked', true),
       supabase.from('site_visits').select('id', { count: 'exact', head: true }).gte('created_at', today),
       supabase.from('projects').select('id', { count: 'exact', head: true })
         .in('lead_id', (await supabase.from('contacts').select('id').eq('is_lead', true)).data?.map(c => c.id) || [])

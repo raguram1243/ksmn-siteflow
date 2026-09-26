@@ -53,7 +53,7 @@ export default function SiteVisitsPage() {
     gpsLng !== null
   )
 
-  const { handleNavigation } = useUnsavedChanges(hasUnsavedChanges)
+  useUnsavedChanges(hasUnsavedChanges)
 
   useEffect(() => {
     fetchVisits()
