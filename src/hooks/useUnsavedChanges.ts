@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 interface UseUnsavedChangesOptions {
   message?: string
@@ -9,9 +10,11 @@ export function useUnsavedChanges(
   options: UseUnsavedChangesOptions = {}
 ) {
   const { message = 'You have unsaved changes. Are you sure you want to leave?' } = options
-  const [showWarning, setShowWarning] = useState(false)
+  const confirm = useConfirm()
 
-  // Handle browser back/close navigation
+  // Handle browser back/close navigation.
+  // NOTE: Browsers only show their own native dialog here and ignore custom
+  // text, so this necessarily stays a beforeunload guard.
   useEffect(() => {
     if (!hasChanges) return
 
@@ -25,29 +28,25 @@ export function useUnsavedChanges(
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [hasChanges, message])
 
-  // Handle in-app navigation (e.g., clicking links)
-  const handleNavigation = useCallback((navigationAction: () => void) => {
+  // Handle in-app navigation (e.g., clicking links) with the styled dialog.
+  const handleNavigation = useCallback(async (navigationAction: () => void) => {
     if (!hasChanges) {
       navigationAction()
       return
     }
 
-    const confirmed = window.confirm(message)
+    const confirmed = await confirm({
+      title: 'Discard unsaved changes?',
+      message,
+      confirmLabel: 'Discard & Leave',
+      tone: 'warning',
+    })
     if (confirmed) {
       navigationAction()
     }
-  }, [hasChanges, message])
-
-  // Reset warning state when changes are saved
-  useEffect(() => {
-    if (!hasChanges) {
-      setShowWarning(false)
-    }
-  }, [hasChanges])
+  }, [hasChanges, message, confirm])
 
   return {
-    showWarning,
-    setShowWarning,
     handleNavigation
   }
 }

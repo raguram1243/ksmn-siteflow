@@ -8,11 +8,13 @@ import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
 import StatusBadge from '../components/StatusBadge'
 import PromptModal from '../components/PromptModal'
+import { useConfirm } from '../contexts/ConfirmContext'
 import type { Project, ExpenseEntry, ProjectProfitView } from '../types/database'
 
 export default function ProjectsPage() {
   const { user, role } = useAuth()
   const { addToast } = useToast()
+  const confirm = useConfirm()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -289,8 +291,14 @@ export default function ProjectsPage() {
     // Check outstanding balance
     const outstanding = getOutstandingBalance(project, payments)
     if (outstanding > 0) {
-      const msg = `This project still has ₹${outstanding.toLocaleString()} outstanding.\n\nAre you sure you want to close it?`
-      if (!confirm(msg)) return
+      const ok = await confirm({
+        title: 'Close project with outstanding balance?',
+        message: 'Closing a project with unpaid amounts can make them harder to track.',
+        details: `Outstanding: ₹${outstanding.toLocaleString()}`,
+        confirmLabel: 'Close Anyway',
+        tone: 'warning',
+      })
+      if (!ok) return
     }
 
     // Close the project
@@ -314,7 +322,13 @@ export default function ProjectsPage() {
   }
 
   async function handleReopenProject(projectId: string) {
-    if (!confirm('Reopen this project? It will become active again and allow expense tracking.')) return
+    const ok = await confirm({
+      title: 'Reopen this project?',
+      message: 'It will become active again and allow expense tracking.',
+      confirmLabel: 'Reopen Project',
+      tone: 'neutral',
+    })
+    if (!ok) return
     if (!user) return
     
     const { error } = await supabase.from('projects').update({

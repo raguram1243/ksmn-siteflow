@@ -11,12 +11,14 @@ import Spinner from '../components/Spinner'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { db } from '../db/indexeddb'
 import type { Contact } from '../types/database'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 const MAX_FILES = 3
 
 export default function SiteVisitsPage() {
   const { user, role } = useAuth()
-  const { addToast } = useToast()
+  const { addToast, addUndoToast } = useToast()
+  const confirm = useConfirm()
   const isOnline = useOnlineStatus()
   const [contacts, setContacts] = useState<Contact[]>([])
   const [visits, setVisits] = useState<any[]>([])
@@ -281,10 +283,15 @@ export default function SiteVisitsPage() {
     setSelectedContact('')
   }
 
-  function handleCloseLogVisit() {
+  async function handleCloseLogVisit() {
     if (hasUnsavedChanges) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to close?')
-      if (!confirmed) return
+      const ok = await confirm({
+        title: 'Discard unsaved changes?',
+        message: 'You have unsaved changes in this visit. Closing now will lose them.',
+        confirmLabel: 'Discard',
+        tone: 'warning',
+      })
+      if (!ok) return
     }
     setShowLogVisit(false)
     stopCamera()
@@ -510,10 +517,19 @@ export default function SiteVisitsPage() {
                 <button
                   onClick={async () => {
                     if (!selectedVisit || deleting) return
-                    if (!confirm('Are you sure you want to delete this site visit? This cannot be undone.')) return
+                    const ok = await confirm({
+                      title: 'Delete site visit?',
+                      message: 'This site visit and its details will be permanently removed.',
+                      details: 'You can undo this for a short while afterwards.',
+                      confirmLabel: 'Delete Visit',
+                      tone: 'danger',
+                    })
+                    if (!ok) return
 
                     setDeleting(true)
                     try {
+                      // Snapshot for undo before deleting
+                      const snapshot = { ...selectedVisit }
                       const { error } = await supabase.from('site_visits').delete().eq('id', selectedVisit.id)
                       if (error) {
                         addToast('Error deleting site visit: ' + error.message, 'error')
@@ -524,7 +540,19 @@ export default function SiteVisitsPage() {
                       setShowVisitDetail(false)
                       setSelectedVisit(null)
                       fetchVisits()
-                      addToast('Site visit deleted successfully', 'success')
+                      addUndoToast('Site visit deleted', async () => {
+                        const { id, _local, ...rest } = snapshot as any
+                        const { error: restoreError } = await supabase.from('site_visits').insert({
+                          ...rest,
+                          id: snapshot.id,
+                        })
+                        if (restoreError) {
+                          addToast('Failed to restore site visit', 'error')
+                        } else {
+                          addToast('Site visit restored', 'success')
+                          fetchVisits()
+                        }
+                      })
                     } finally {
                       setDeleting(false)
                     }

@@ -9,10 +9,12 @@ import Modal from '../components/Modal'
 import StatusBadge from '../components/StatusBadge'
 import Spinner from '../components/Spinner'
 import PromptModal from '../components/PromptModal'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 export default function PaymentsPage() {
   const { user, role } = useAuth()
   const { addToast, addUndoToast } = useToast()
+  const confirm = useConfirm()
   const [payments, setPayments] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -318,10 +320,18 @@ export default function PaymentsPage() {
 
   async function handleDelete(id: string, projectId: string, receiptUrl: string | null, paymentData?: any) {
     if (deletingId) return
-    if (!confirm('Delete this payment entry? This action cannot be undone.')) return
 
     // Store data for potential undo
     const deletedPayment = paymentData || { id, project_id: projectId, receipt_url: receiptUrl }
+
+    const ok = await confirm({
+      title: 'Delete payment entry?',
+      message: 'This payment and any uploaded receipt will be removed.',
+      details: 'You can undo this for a short while afterwards.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })
+    if (!ok) return
 
     setDeletingId(id)
     try {

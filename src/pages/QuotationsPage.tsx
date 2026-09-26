@@ -11,12 +11,14 @@ import StatusBadge from '../components/StatusBadge'
 import DragDropUpload from '../components/DragDropUpload'
 import Spinner from '../components/Spinner'
 import type { Contact, Quotation, QuotationLineItem, CatalogItem } from '../types/database'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 const MAX_FILES = 3
 
 export default function QuotationsPage() {
   const { user, role } = useAuth()
-  const { addToast } = useToast()
+  const { addToast, addUndoToast } = useToast()
+  const confirm = useConfirm()
   const [leads, setLeads] = useState<Contact[]>([])
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
@@ -148,10 +150,15 @@ export default function QuotationsPage() {
     stopCamera()
   }
 
-  function closeCreateModal() {
+  async function closeCreateModal() {
     if (hasUnsavedChanges) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to close?')
-      if (!confirmed) return
+      const ok = await confirm({
+        title: 'Discard unsaved changes?',
+        message: 'You have unsaved changes in this quotation. Closing now will lose them.',
+        confirmLabel: 'Discard',
+        tone: 'warning',
+      })
+      if (!ok) return
     }
     setShowCreate(false)
     setFormLead('')
@@ -516,7 +523,14 @@ export default function QuotationsPage() {
   }
 
   async function handleAdminLock(quotation: Quotation) {
-    if (!confirm('Lock this quotation and create a project? This action cannot be undone.')) return
+    const ok = await confirm({
+      title: 'Lock quotation and create project?',
+      message: `"${quotation.option_label}" will be locked as approved and a project will be created from it.`,
+      details: `Baseline project value: ₹${Number(quotation.total_value).toLocaleString()}. This action cannot be undone.`,
+      confirmLabel: 'Lock & Create Project',
+      tone: 'warning',
+    })
+    if (!ok) return
 
     const { error: quoteErr } = await supabase.from('quotations').update({ admin_locked: true, client_approved: true }).eq('id', quotation.id)
     if (quoteErr) { 
@@ -555,7 +569,14 @@ export default function QuotationsPage() {
   }
 
   async function handleUnlock(quotation: Quotation) {
-    if (!confirm('Unlock this quotation? The associated project will be deleted and the quotation will return to draft state.')) return
+    const ok = await confirm({
+      title: 'Unlock this quotation?',
+      message: 'The associated project and its tracked expenses/payments will be deleted.',
+      details: `"${quotation.option_label}" will return to draft state. This cannot be undone.`,
+      confirmLabel: 'Unlock & Delete Project',
+      tone: 'danger',
+    })
+    if (!ok) return
 
     const { data: proj, error: projError } = await supabase.from('projects').select('id').eq('quotation_id', quotation.id).single()
     if (projError && projError.code !== 'PGRST116') {
@@ -1068,7 +1089,6 @@ export default function QuotationsPage() {
                   <button
                     onClick={async () => {
                       if (!selectedQuotation || deleting) return
-                      if (!confirm(`Are you sure you want to delete this quotation (${selectedQuotation.option_label})? This cannot be undone.`)) return
 
                       // Block deletion if locked (has project)
                       if (selectedQuotation.admin_locked) {
@@ -1076,8 +1096,25 @@ export default function QuotationsPage() {
                         return
                       }
 
+                      const optionLabel = selectedQuotation.option_label
+                      const ok = await confirm({
+                        title: 'Delete quotation?',
+                        message: `"${optionLabel}" and all of its line items will be permanently removed.`,
+                        details: 'You can undo this for a short while afterwards.',
+                        confirmLabel: 'Delete',
+                        tone: 'danger',
+                      })
+                      if (!ok) return
+
                       setDeleting(true)
                       try {
+                        // Snapshot for undo before deleting
+                        const quoteSnapshot = { ...selectedQuotation }
+                        const linesSnapshot = await supabase
+                          .from('quotation_line_items')
+                          .select('*')
+                          .eq('quotation_id', selectedQuotation.id)
+
                         // Delete line items first
                         await supabase.from('quotation_line_items').delete().eq('quotation_id', selectedQuotation.id)
 
@@ -1091,7 +1128,24 @@ export default function QuotationsPage() {
                         setShowDetail(false)
                         setSelectedQuotation(null)
                         fetchData()
-                        addToast('Quotation deleted successfully', 'success')
+                        addUndoToast(`Quotation "${optionLabel}" deleted`, async () => {
+                          const { id, ...qRest } = quoteSnapshot as any
+                          const { error: restoreErr } = await supabase
+                            .from('quotations')
+                            .insert({ ...qRest, id: quoteSnapshot.id })
+                          if (restoreErr) {
+                            addToast('Failed to restore quotation', 'error')
+                            return
+                          }
+                          const lines = (linesSnapshot.data || []) as any[]
+                          if (lines.length > 0) {
+                            await supabase.from('quotation_line_items').insert(
+                              lines.map(({ id: _lineId, ...line }: any) => ({ ...line, quotation_id: quoteSnapshot.id }))
+                            )
+                          }
+                          addToast('Quotation restored', 'success')
+                          fetchData()
+                        })
                       } finally {
                         setDeleting(false)
                       }

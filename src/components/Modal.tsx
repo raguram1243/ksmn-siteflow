@@ -63,7 +63,7 @@ export default function Modal({ isOpen, onClose, children, size = 'md' }: ModalP
     >
       <div
         ref={modalRef}
-        className={`bg-white rounded-lg w-full ${sizeClasses[size]} mx-4 modal-animate-in flex flex-col max-h-[90vh] shadow-xl`}
+        className={`bg-white dark:bg-gray-800 rounded-lg w-full ${sizeClasses[size]} mx-4 modal-animate-in flex flex-col max-h-[90vh] shadow-xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex-1 overflow-y-auto px-6 py-5">

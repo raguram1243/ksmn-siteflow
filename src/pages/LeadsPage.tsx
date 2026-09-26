@@ -11,10 +11,12 @@ import Modal from '../components/Modal'
 import StatusBadge from '../components/StatusBadge'
 import CopyButton from '../components/CopyButton'
 import Spinner from '../components/Spinner'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 export default function LeadsPage() {
   const { role } = useAuth()
-  const { addToast } = useToast()
+  const { addToast, addUndoToast } = useToast()
+  const confirm = useConfirm()
   const navigate = useNavigate()
   const [leads, setLeads] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
@@ -248,7 +250,15 @@ export default function LeadsPage() {
                 <button
                   onClick={async () => {
                     if (!selectedLead || deleting) return
-                    if (!confirm(`Are you sure you want to delete this lead (${selectedLead.name})? This cannot be undone.`)) return
+                    const leadName = selectedLead.name
+                    const ok = await confirm({
+                      title: 'Delete lead?',
+                      message: `"${leadName}" will be permanently removed.`,
+                      details: 'You can undo this for a short while afterwards.',
+                      confirmLabel: 'Delete Lead',
+                      tone: 'danger',
+                    })
+                    if (!ok) return
 
                     setDeleting(true)
                     try {
@@ -264,6 +274,8 @@ export default function LeadsPage() {
                         return
                       }
 
+                      // Snapshot for undo before deleting
+                      const snapshot = { ...selectedLead }
                       const { error } = await supabase.from('contacts').delete().eq('id', selectedLead.id)
                       if (error) {
                         addToast('Error deleting lead: ' + error.message, 'error')
@@ -274,7 +286,19 @@ export default function LeadsPage() {
                       setShowDetail(false)
                       setSelectedLead(null)
                       fetchLeads()
-                      addToast('Lead deleted successfully', 'success')
+                      addUndoToast(`Lead "${leadName}" deleted`, async () => {
+                        const { id, ...rest } = snapshot as any
+                        const { error: restoreError } = await supabase.from('contacts').insert({
+                          ...rest,
+                          id: snapshot.id,
+                        })
+                        if (restoreError) {
+                          addToast('Failed to restore lead', 'error')
+                        } else {
+                          addToast('Lead restored', 'success')
+                          fetchLeads()
+                        }
+                      })
                     } finally {
                       setDeleting(false)
                     }

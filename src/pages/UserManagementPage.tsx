@@ -5,6 +5,7 @@ import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
 import PasswordInput from '../components/PasswordInput'
 import type { Profile } from '../types/database'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 interface User extends Profile {
   is_active: boolean
@@ -13,6 +14,7 @@ interface User extends Profile {
 
 export default function UserManagementPage() {
   const { addToast, addUndoToast } = useToast()
+  const confirm = useConfirm()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -96,7 +98,13 @@ export default function UserManagementPage() {
   }
 
   async function handleResetPassword(userId: string) {
-    if (!confirm('Reset password for this user? They will be required to change it on next login.')) return
+    const ok = await confirm({
+      title: 'Reset password?',
+      message: 'The user will be required to change it the next time they log in.',
+      confirmLabel: 'Reset Password',
+      tone: 'warning',
+    })
+    if (!ok) return
 
     const { data, error } = await supabase.functions.invoke('create-user', {
       body: { action: 'reset_password', targetUserId: userId }
@@ -120,13 +128,18 @@ export default function UserManagementPage() {
   }
 
   async function handleToggleActive(user: User) {
-    const action = user.is_active ? 'deactivate' : 'reactivate'
-    const confirmMsg = user.is_active 
-      ? 'Deactivate this user? They will not be able to log in, but their data will remain intact.'
-      : 'Reactivate this user? They will be able to log in again.'
+    const deactivating = user.is_active
+    const ok = await confirm({
+      title: deactivating ? 'Deactivate this user?' : 'Reactivate this user?',
+      message: deactivating
+        ? 'They will not be able to log in, but their data will remain intact.'
+        : 'They will be able to log in again.',
+      confirmLabel: deactivating ? 'Deactivate' : 'Reactivate',
+      tone: deactivating ? 'warning' : 'success',
+    })
+    if (!ok) return
 
-    if (!confirm(confirmMsg)) return
-
+    const action = deactivating ? 'deactivate' : 'reactivate'
     const { data, error } = await supabase.functions.invoke('create-user', {
       body: { action, targetUserId: user.id }
     })
@@ -139,10 +152,16 @@ export default function UserManagementPage() {
   }
 
   async function handleDeleteUser(user: User) {
-    const confirmMsg = `Delete user "${user.full_name}"?\n\nThis will permanently remove their account. Their historical records (contacts, leads, etc.) will be preserved but will show as "Created by: Removed User".\n\nThis action cannot be undone.`
-
     if (deletingUserId) return
-    if (!confirm(confirmMsg)) return
+
+    const ok = await confirm({
+      title: `Delete user "${user.full_name}"?`,
+      message: 'This will permanently remove their account. This action cannot be undone.',
+      details: 'Their historical records (contacts, leads, etc.) will be preserved but will show as "Created by: Removed User".',
+      confirmLabel: 'Delete User',
+      tone: 'danger',
+    })
+    if (!ok) return
 
     setDeletingUserId(user.id)
 

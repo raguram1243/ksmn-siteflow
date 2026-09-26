@@ -19,6 +19,8 @@ import { useEffect } from 'react'
 import { ToastProvider } from './contexts/ToastContext'
 import { DarkModeProvider } from './contexts/DarkModeContext'
 import { WhatsNewProvider } from './contexts/WhatsNewContext'
+import { ConfirmProvider } from './contexts/ConfirmContext'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) {
   const { user, profile, loading } = useAuth()
@@ -180,16 +182,20 @@ export default function App() {
   }, [])
 
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <DarkModeProvider>
-            <WhatsNewProvider>
-              <AppRoutes />
-            </WhatsNewProvider>
-          </DarkModeProvider>
-        </ToastProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <DarkModeProvider>
+              <WhatsNewProvider>
+                <ConfirmProvider>
+                  <AppRoutes />
+                </ConfirmProvider>
+              </WhatsNewProvider>
+            </DarkModeProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

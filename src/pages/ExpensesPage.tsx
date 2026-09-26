@@ -11,12 +11,14 @@ import StatusBadge from '../components/StatusBadge'
 import DragDropUpload from '../components/DragDropUpload'
 import Spinner from '../components/Spinner'
 import PromptModal from '../components/PromptModal'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 const MAX_FILES = 3
 
 export default function ExpensesPage() {
   const { user, role } = useAuth()
   const { addToast, addUndoToast } = useToast()
+  const confirm = useConfirm()
   const [projects, setProjects] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any>([])
   const [projectOnlyExpenses, setProjectOnlyExpenses] = useState<any[]>([])
@@ -524,10 +526,15 @@ export default function ExpensesPage() {
     stopCamera()
   }
 
-  function closeAddModal() {
+  async function closeAddModal() {
     if (hasUnsavedChanges) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to close?')
-      if (!confirmed) return
+      const ok = await confirm({
+        title: 'Discard unsaved changes?',
+        message: 'You have unsaved changes in this expense entry. Closing now will lose them.',
+        confirmLabel: 'Discard',
+        tone: 'warning',
+      })
+      if (!ok) return
     }
     setShowAdd(false)
     resetForm()
@@ -535,10 +542,18 @@ export default function ExpensesPage() {
 
   async function handleDelete(id: string, projectId: string, billUrls: string[] | null, expenseData?: any) {
     if (deletingId) return
-    if (!confirm('Delete this expense entry? This action cannot be undone.')) return
 
     // Store data for potential undo
     const deletedExpense = expenseData || { id, project_id: projectId, bill_urls: billUrls }
+
+    const ok = await confirm({
+      title: 'Delete expense entry?',
+      message: 'This expense and any uploaded bills will be removed.',
+      details: 'You can undo this for a short while afterwards.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })
+    if (!ok) return
 
     setDeletingId(id)
     try {

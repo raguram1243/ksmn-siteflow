@@ -4,10 +4,12 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../contexts/ToastContext'
 import type { CatalogItem } from '../types/database'
 import Spinner from '../components/Spinner'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 export default function CatalogPage() {
   const { user, role } = useAuth()
   const { addToast, addUndoToast } = useToast()
+  const confirm = useConfirm()
   const [items, setItems] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -113,11 +115,19 @@ export default function CatalogPage() {
 
   async function handleDelete(id: string) {
     if (deletingId) return
-    if (!confirm('Are you sure you want to delete this item?')) return
 
     // Store item data for potential undo
     const deletedItem = items.find(item => item.id === id)
     if (!deletedItem) return
+
+    const ok = await confirm({
+      title: 'Delete catalog item?',
+      message: `"${deletedItem.name}" will be removed from the catalog.`,
+      details: 'You can undo this for a short while afterwards.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })
+    if (!ok) return
 
     setDeletingId(id)
     try {
