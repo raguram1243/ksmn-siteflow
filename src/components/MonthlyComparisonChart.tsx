@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { CHART, CHART_CHROME } from '../lib/chartColors'
 
 interface MonthlyComparisonChartProps {
   monthly: { this_month_value: number; last_month_value: number }
@@ -44,20 +45,24 @@ export default function MonthlyComparisonChart({ monthly, expenses }: MonthlyCom
 
       {!hasData ? (
         <div className="h-56 flex flex-col items-center justify-center text-center">
-          <div className="text-3xl mb-1">📈</div>
+          <div className="flex justify-center mb-2">
+            <svg className="w-9 h-9 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 15l3.5-4 3 3L21 6" />
+            </svg>
+          </div>
           <p className="text-sm text-gray-500">No activity yet</p>
           <p className="text-xs text-gray-400 mt-1">Booked value and expenses will appear here</p>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={230}>
           <BarChart data={data} barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-            <YAxis tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11 }} stroke="#9ca3af" />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59,130,246,0.06)' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_CHROME.grid} vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke={CHART_CHROME.axis} />
+            <YAxis tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 11 }} stroke={CHART_CHROME.axis} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(37, 99, 235, 0.06)' }} />
             <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="Booked" name="Booked Value" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={48} />
-            <Bar dataKey="Expenses" name="Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={48} />
+            <Bar dataKey="Booked" name="Booked Value" fill={CHART.booked} radius={[4, 4, 0, 0]} maxBarSize={48} />
+            <Bar dataKey="Expenses" name="Expenses" fill={CHART.expenses} radius={[4, 4, 0, 0]} maxBarSize={48} />
           </BarChart>
         </ResponsiveContainer>
       )}

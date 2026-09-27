@@ -57,7 +57,12 @@ export default function LoginPage() {
       </button>
 
       {/* Login card — semi-transparent with backdrop blur for legibility over animated bg */}
-      <div className="relative z-10 max-w-md w-full space-y-8 p-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl shadow-lg border border-white/40 dark:border-gray-700/40">
+      <div className="relative z-10 max-w-md w-full space-y-8 p-8 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-xl shadow-lg border border-white/40 dark:border-gray-700/40 overflow-hidden">
+        {/* Brand gradient edge, echoing the in-app top bar */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500"
+        />
         <div>
           <div className="flex justify-center mb-4">
             <img src="/KSMN_logo.png" alt="KSMN Logo" className="h-20 w-auto" />

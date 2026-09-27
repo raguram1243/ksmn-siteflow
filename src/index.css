@@ -29,6 +29,18 @@
   --color-accent-600: #0891b2;
 }
 
+/* Chart chrome — read by Recharts (which needs real color values, not
+   classes) so grid lines and axes follow the active theme. */
+:root {
+  --chart-grid: #e5e7eb;
+  --chart-axis: #9ca3af;
+}
+
+.dark {
+  --chart-grid: #374151;
+  --chart-axis: #6b7280;
+}
+
 /* Guarantee Inter applies to <body> even if base preflight ordering differs */
 body {
   font-family: var(--font-sans);

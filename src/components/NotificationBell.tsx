@@ -79,7 +79,11 @@ function PendingPanel({
   if (items.length === 0) {
     return (
       <div className="p-8 text-center">
-        <div className="text-3xl mb-2">📭</div>
+          <div className="flex justify-center mb-2">
+            <svg className="w-9 h-9 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 13.553V11a8 8 0 10-3.853 6.926M3 20h18M8.5 16.5H5m11 0h-3.5" />
+            </svg>
+          </div>
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No pending approvals</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
           Quotations, payments and expenses awaiting review.
@@ -365,7 +369,11 @@ export default function NotificationBell() {
             {tab === 'alerts' ? (
               visibleAlerts.length === 0 ? (
                 <div className="p-8 text-center">
-                  <div className="text-3xl mb-2">✅</div>
+                  <div className="flex justify-center mb-2">
+            <svg className="w-9 h-9 text-green-400 dark:text-green-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">All clear</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {dismissedCount > 0

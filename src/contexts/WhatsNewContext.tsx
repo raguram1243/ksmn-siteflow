@@ -21,6 +21,41 @@ const CHANGELOG_KEY = 'ksmn-whatsnew-lastviewed'
 
 const changelog: WhatsNewItem[] = [
   {
+    version: '1.9.0',
+    date: '2026-09-27',
+    title: 'Visual Refresh & Design System',
+    description: 'A cleaner, more consistent look across the whole app, plus a new typeface and working dark mode in every chart.',
+    features: [
+      'New Inter typeface across the app for a sharper, more modern feel',
+      'Centralised design tokens (brand + accent colour scales) as a single source of truth',
+      'All charts now use the brand palette instead of hardcoded colours',
+      'Chart grid lines and axes now adapt to dark mode',
+      'Conversion funnel uses a single-hue progression so it reads as one journey narrowing',
+      'Margin trend line is colour-coded: green above target, amber below, red at a loss',
+      'Notification bell redesigned with Alerts and Approvals tabs',
+      'Mark notifications as read/unread, delete them, or mark all read at once',
+      'Login card and offline banner restyled to match the new theme'
+    ]
+  },
+  {
+    version: '1.8.0',
+    date: '2026-09-26',
+    title: 'Dashboard Analytics, Global Search & Profitability Report',
+    description: 'See what needs your attention today, find anything in two keystrokes, and see where every project actually made money.',
+    features: [
+      'Alerts for overdue client payments, overdue lead follow-ups and projects below target margin',
+      'Global search: press Ctrl+K to jump to any page, contact, project, quotation or catalog item',
+      'New Profitability Report showing per-project margin vs target, worst performers first',
+      'Profitability Report can be exported to CSV or printed',
+      'New dashboard cards for collected-this-month and collection health',
+      'Charts for expenses by category and payments by mode',
+      'Dashboard refresh throttling to cut down on unnecessary data fetching',
+      'In-app confirm and prompt dialogs replace the browser popups',
+      'Undo now available for deleting leads, site visits and quotations',
+      'Error boundary so an unexpected error shows a recovery screen instead of a blank page'
+    ]
+  },
+  {
     version: '1.7.0',
     date: '2026-09-15',
     title: 'Expense Approval Workflow',

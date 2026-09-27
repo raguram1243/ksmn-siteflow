@@ -613,7 +613,7 @@ export default function ContactsPage() {
             <button
               onClick={() => handleDeleteContact(selectedContact)}
               disabled={deletingContactId !== null}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300 rounded-md hover:bg-red-100 border border-red-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300 rounded-md hover:bg-red-100 dark:hover:bg-red-900 border border-red-200 dark:border-red-900 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {deletingContactId === null ? (
                 '🗑️ Delete Contact'

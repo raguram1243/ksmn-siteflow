@@ -41,18 +41,42 @@ export default function OfflineBanner() {
 
   if (status === 'online') return null
 
+  // Tones pulled from the shared palette so the banner matches the rest of
+  // the app (amber = attention, brand = in-progress, green = success).
+  // Icons are inline SVG rather than emoji for a consistent look.
   const messages = {
-    offline: { text: "You're offline — changes will sync when reconnected", bg: 'bg-yellow-500', icon: '📡' },
-    syncing: { text: `Back online, syncing ${syncQueueCount} item${syncQueueCount !== 1 ? 's' : ''}...`, bg: 'bg-blue-500', icon: '🔄' },
-    synced: { text: 'All synced successfully!', bg: 'bg-green-500', icon: '✅' }
-  }
+    offline: {
+      text: "You're offline — changes will sync when reconnected",
+      bg: 'bg-amber-500',
+      icon: 'M8.72 8.72L12 12m0 0l3.28 3.28M12 12l3.28-3.28M12 12l-3.28 3.28M5.65 5.65A9 9 0 0012 21a9 9 0 008.35-4.65M5.65 5.65A9 9 0 0112 3c1.69 0 3.27.47 4.65 1.28M1 1l22 22',
+    },
+    syncing: {
+      text: `Back online, syncing ${syncQueueCount} item${syncQueueCount !== 1 ? 's' : ''}…`,
+      bg: 'bg-brand-600',
+      icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+    },
+    synced: {
+      text: 'All synced successfully!',
+      bg: 'bg-green-600',
+      icon: 'm5 13 4 4L19 7',
+    },
+  } as const
 
   const { text, bg, icon } = messages[status]
 
   return (
-    <div className={`fixed top-0 left-0 right-0 ${bg} text-white px-4 py-2.5 z-[60] shadow-lg animate-pulse`}>
+    <div className={`fixed top-0 left-0 right-0 ${bg} text-white px-4 py-2.5 z-[60] shadow-lg`} role="status">
       <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm font-medium">
-        <span className="text-lg">{icon}</span>
+        <svg
+          className={`w-4 h-4 flex-shrink-0 ${status === 'syncing' ? 'animate-spin' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+        </svg>
         <span>{text}</span>
       </div>
     </div>

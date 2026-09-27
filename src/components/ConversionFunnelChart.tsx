@@ -1,3 +1,5 @@
+import { FUNNEL_COLORS } from '../lib/chartColors'
+
 interface FunnelData {
   total_contacts: number
   total_leads: number
@@ -15,11 +17,13 @@ interface ConversionFunnelChartProps {
  * without label collisions.
  */
 export default function ConversionFunnelChart({ funnel }: ConversionFunnelChartProps) {
+  // Single-hue progression (dark→light blue) so the funnel reads as one
+  // narrowing journey, with only the final confirmed stage in green.
   const stages = [
-    { label: 'Contacts Met', value: Number(funnel.total_contacts) || 0, color: 'bg-blue-500' },
-    { label: 'Leads', value: Number(funnel.total_leads) || 0, color: 'bg-purple-500' },
-    { label: 'Quotations Sent', value: Number(funnel.quotations_sent) || 0, color: 'bg-amber-500' },
-    { label: 'Confirmed', value: Number(funnel.confirmed) || 0, color: 'bg-green-500' },
+    { label: 'Contacts Met', value: Number(funnel.total_contacts) || 0, color: FUNNEL_COLORS.total_contacts },
+    { label: 'Leads', value: Number(funnel.total_leads) || 0, color: FUNNEL_COLORS.total_leads },
+    { label: 'Quotations Sent', value: Number(funnel.quotations_sent) || 0, color: FUNNEL_COLORS.quotations_sent },
+    { label: 'Confirmed', value: Number(funnel.confirmed) || 0, color: FUNNEL_COLORS.confirmed },
   ]
 
   const max = Math.max(...stages.map(s => s.value), 1)
@@ -55,8 +59,8 @@ export default function ConversionFunnelChart({ funnel }: ConversionFunnelChartP
               </div>
               <div className="h-3 w-full rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${s.color} transition-all duration-500`}
-                  style={{ width: `${(s.value / max) * 100}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${(s.value / max) * 100}%`, backgroundColor: s.color }}
                 />
               </div>
               {i > 0 && (
