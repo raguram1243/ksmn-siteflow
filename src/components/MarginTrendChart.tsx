@@ -25,7 +25,7 @@ function CustomTooltip({ active, payload, label }: any) {
 
 /**
  * Average margin trend for closed projects over recent months.
- * Requires get_monthly_margin_trend() (see supabase-margin-trend.sql).
+ * Requires get_monthly_margin_trend() (see supabase-profit-cash-basis.sql).
  * If the function is not deployed yet, falls back to the empty state.
  */
 export default function MarginTrendChart() {

@@ -226,52 +226,11 @@ CREATE POLICY "Expenses delete" ON public.expense_entries FOR DELETE
 -- REAPPLY PROFIT VIEW & RPC
 -- ============================================================================
 DROP FUNCTION IF EXISTS public.is_admin();
-DROP FUNCTION IF EXISTS public.get_project_profit_view();
-DROP FUNCTION IF EXISTS public.get_admin_portfolio_summary();
 DROP FUNCTION IF EXISTS public.update_project_cost;
 
--- Fix profit view function to not depend on is_admin (use current_user_role)
-CREATE OR REPLACE FUNCTION public.get_project_profit_view()
-RETURNS SETOF public.project_profit_view
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-  SELECT * FROM public.project_profit_view
-  WHERE public.current_user_role() = 'admin'
-$$;
-
--- Portfolio summary
-CREATE OR REPLACE FUNCTION public.get_admin_portfolio_summary()
-RETURNS TABLE (
-  total_projects BIGINT,
-  active_projects BIGINT,
-  total_quoted_value DECIMAL,
-  total_cost DECIMAL,
-  avg_margin DECIMAL,
-  below_target_count BIGINT
-)
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-  SELECT
-    COUNT(*)::BIGINT,
-    COUNT(*) FILTER (WHERE status = 'in_progress')::BIGINT,
-    COALESCE(SUM(baseline_quotation_value), 0),
-    COALESCE(SUM(actual_cost_total), 0),
-    CASE
-      WHEN SUM(baseline_quotation_value) > 0
-      THEN ROUND((SUM(baseline_quotation_value) - SUM(actual_cost_total)) / SUM(baseline_quotation_value) * 100, 2)
-      ELSE 0
-    END,
-    COUNT(*) FILTER (
-      WHERE baseline_quotation_value > 0
-      AND ((baseline_quotation_value - actual_cost_total) / baseline_quotation_value * 100) < target_margin_percent
-    )::BIGINT
-  FROM public.projects
-  WHERE public.current_user_role() = 'admin';
-$$;
+-- NOTE: profit/margin logic moved to supabase-profit-cash-basis.sql (cash basis:
+-- profit = total received - actual cost). get_project_profit_view() and get_admin_portfolio_summary() was removed from this file
+-- so re-running it can't restore the old quotation-based formula.
 
 -- Cost recalculation trigger
 CREATE OR REPLACE FUNCTION public.update_project_cost(p_project_id UUID)
@@ -292,8 +251,6 @@ END;
 $$;
 
 -- Grant permissions
-GRANT EXECUTE ON FUNCTION public.get_project_profit_view() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_admin_portfolio_summary() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_project_cost TO authenticated;
 
 -- ============================================================================

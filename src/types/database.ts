@@ -148,12 +148,13 @@ export interface ExpenseEntry {
 export interface ProjectProfitView {
   project_id: string
   contact_name: string
-  quotation_value: number
-  actual_cost: number
+  effective_quotation_value: number
+  actual_cost_total: number
+  total_received: number
   profit_amount: number
   margin_percent: number
-  margin_status: 'above_target' | 'on_target' | 'below_target' | 'loss'
-  target_margin: number
+  margin_status: 'above_target' | 'on_target' | 'below_target' | 'loss' | 'no_data'
+  target_margin_percent: number
 }
 
 // Pending approval for admin dashboard

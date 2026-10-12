@@ -32,7 +32,6 @@ DROP POLICY IF EXISTS "Admins can CRUD all expense entries" ON public.expense_en
 
 -- Also drop the is_admin function and profit view function (recreate below)
 DROP FUNCTION IF EXISTS public.is_admin();
-DROP FUNCTION IF EXISTS public.get_project_profit_view();
 
 -- ============================================================================
 -- HELPER FUNCTION: Get the current user's role from JWT metadata
@@ -305,24 +304,9 @@ CREATE POLICY "Expense entries delete"
 -- ============================================================================
 -- ADMIN-ONLY ACCESS: Use JWT role check instead of profiles table query
 -- ============================================================================
--- Revoke direct access to profit view from all roles
-REVOKE ALL ON public.project_profit_view FROM PUBLIC;
-REVOKE ALL ON public.project_profit_view FROM authenticated;
-
--- Create a function that only returns data for admins
-CREATE OR REPLACE FUNCTION public.get_project_profit_view()
-RETURNS SETOF public.project_profit_view
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
-  SELECT * FROM public.project_profit_view
-  WHERE public.current_user_role() = 'admin'
-$$;
-
--- Grant execute to authenticated users (the function itself enforces admin-only)
-REVOKE ALL ON FUNCTION public.get_project_profit_view() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_project_profit_view() TO authenticated;
+-- NOTE: profit/margin logic moved to supabase-profit-cash-basis.sql (cash basis:
+-- profit = total received - actual cost). get_project_profit_view() was removed from this file
+-- so re-running it can't restore the old quotation-based formula.
 
 -- ============================================================================
 -- VERIFICATION QUERIES (run these to confirm no recursion)

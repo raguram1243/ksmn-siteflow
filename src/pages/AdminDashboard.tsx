@@ -4,8 +4,9 @@ import { SkeletonDashboard } from '../components/Skeleton'
 import { useToast } from '../contexts/ToastContext'
 import MarginTrendChart from '../components/MarginTrendChart'
 import Modal from '../components/Modal'
-import type { Project, PendingApproval } from '../types/database'
+import type { Project, PendingApproval, ProjectProfitView } from '../types/database'
 import StatCard from '../components/StatCard'
+import { formatINR } from '../lib/format'
 import ConversionFunnelChart from '../components/ConversionFunnelChart'
 import MonthlyComparisonChart from '../components/MonthlyComparisonChart'
 import BreakdownDonut from '../components/BreakdownDonut'
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
     totalProjects: 0
   })
   const [recentProjects, setRecentProjects] = useState<Project[]>([])
+  const [belowTargetProjects, setBelowTargetProjects] = useState<(ProjectProfitView & { site_location?: string })[]>([])
   const [loading, setLoading] = useState(true)
 
   // New stats
@@ -78,7 +80,7 @@ export default function AdminDashboard() {
     // Fetch all stats in parallel
     const [portfolioRes, funnelRes, monthlyRes, approvalsRes, followupsRes, repActivityRes, settingsRes,
            collectionRes, overdueRes, durationRes, profitRes, expenseMonthlyRes, expenseBreakdownRes,
-           paymentMonthlyRes, paymentModesRes] = await Promise.all([
+           paymentMonthlyRes, paymentModesRes, profitViewRes] = await Promise.all([
       supabase.rpc('get_admin_portfolio_summary'),
       supabase.rpc('get_conversion_funnel'),
       supabase.rpc('get_monthly_comparison'),
@@ -93,7 +95,8 @@ export default function AdminDashboard() {
       supabase.rpc('get_expense_monthly_comparison'),
       supabase.rpc('get_expense_category_breakdown'),
       supabase.rpc('get_payment_monthly_comparison'),
-      supabase.rpc('get_payment_mode_breakdown')
+      supabase.rpc('get_payment_mode_breakdown'),
+      supabase.rpc('get_project_profit_view')
     ])
 
     // Check for errors
@@ -112,6 +115,7 @@ export default function AdminDashboard() {
     if (expenseBreakdownRes.error) console.error('Error fetching expense breakdown:', expenseBreakdownRes.error)
     if (paymentMonthlyRes.error) console.error('Error fetching payment monthly:', paymentMonthlyRes.error)
     if (paymentModesRes.error) console.error('Error fetching payment modes:', paymentModesRes.error)
+    if (profitViewRes.error) console.error('Error fetching profit view:', profitViewRes.error)
 
     const portfolio = portfolioRes.data as any
     const portfolioData = Array.isArray(portfolio) ? portfolio[0] : portfolio
@@ -186,6 +190,13 @@ export default function AdminDashboard() {
       setPaymentMonthly(paymentMonthlyData[0])
     }
     setPaymentModes((paymentModesRes.data as any) || [])
+
+    // Cash-basis margins (received - cost); worst first
+    setBelowTargetProjects(
+      (((profitViewRes.data as any[]) || []) as (ProjectProfitView & { site_location?: string })[])
+        .filter(p => p.margin_status === 'below_target' || p.margin_status === 'loss')
+        .sort((a, b) => Number(a.margin_percent) - Number(b.margin_percent))
+    )
 
     // Fetch recent projects
     const recent = await supabase
@@ -491,16 +502,16 @@ export default function AdminDashboard() {
 
           {/* Profit & Duration Summary - NEW */}
           <div className="bg-white p-6 rounded-lg shadow-sm border mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary (Closed Projects)</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary (All Projects, Cash Basis)</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <div className="text-sm text-gray-500">Total Profit</div>
                 <div className={`text-xl font-bold ${Number(totalProfit.total_profit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ₹{Number(totalProfit.total_profit).toLocaleString()}
+                  {formatINR(totalProfit.total_profit)}
                 </div>
               </div>
               <div>
-                <div className="text-sm text-gray-500">Total Revenue</div>
+                <div className="text-sm text-gray-500">Total Received</div>
                 <div className="text-xl font-bold text-gray-900">₹{Number(totalProfit.total_revenue).toLocaleString()}</div>
               </div>
               <div>
@@ -599,31 +610,20 @@ export default function AdminDashboard() {
                 <div className="p-6 text-center text-gray-500">All projects are meeting target margin! 🎉</div>
               ) : (
                 <div className="divide-y divide-gray-200">
-                  {recentProjects
-                    .filter((p: Project) => {
-                      if (p.baseline_quotation_value <= 0) return false
-                      const margin = ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100)
-                      return margin < p.target_margin_percent
-                    })
-                    .map((p: Project) => {
-                      const margin = p.baseline_quotation_value > 0
-                        ? ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100)
-                        : 0
-                      return (
-                        <div key={p.id} className="px-6 py-3 hover:bg-gray-50">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <span className="text-sm font-medium text-gray-900">{p.contacts?.name || 'Unknown'}</span>
-                              <span className="ml-2 text-xs text-gray-500">{p.contacts?.site_location}</span>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium text-red-600">{margin.toFixed(1)}%</div>
-                              <div className="text-xs text-gray-500">Target: {p.target_margin_percent}%</div>
-                            </div>
-                          </div>
+                  {belowTargetProjects.slice(0, 5).map(p => (
+                    <div key={p.project_id} className="px-6 py-3 hover:bg-gray-50">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">{p.contact_name || 'Unknown'}</span>
+                          <span className="ml-2 text-xs text-gray-500">{p.site_location}</span>
                         </div>
-                      )
-                    })}
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-red-600">{Number(p.margin_percent).toFixed(1)}%</div>
+                          <div className="text-xs text-gray-500">Target: {p.target_margin_percent}%</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

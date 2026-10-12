@@ -9,7 +9,14 @@ import Modal from '../components/Modal'
 import StatusBadge from '../components/StatusBadge'
 import PromptModal from '../components/PromptModal'
 import { useConfirm } from '../contexts/ConfirmContext'
-import type { Project, ExpenseEntry, ProjectProfitView } from '../types/database'
+import type { Project, ExpenseEntry } from '../types/database'
+import { calcProfit, calcExpectedProfit, type MarginStatus } from '../lib/profit'
+import { formatINR } from '../lib/format'
+import InfoTip from '../components/InfoTip'
+
+function Skel({ className = '' }: { className?: string }) {
+  return <span className={`skeleton block rounded ${className}`} aria-hidden="true" />
+}
 
 export default function ProjectsPage() {
   const { user, role } = useAuth()
@@ -22,10 +29,10 @@ export default function ProjectsPage() {
   const [sortBy, setSortBy] = useState<string>('created_at')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [adjustments, setAdjustments] = useState<any[]>([])
-  const [profitData, setProfitData] = useState<ProjectProfitView | null>(null)
   const [selectedExpense, setSelectedExpense] = useState<ExpenseEntry | null>(null)
   const [showExpenseDetail, setShowExpenseDetail] = useState(false)
 
@@ -100,7 +107,7 @@ export default function ProjectsPage() {
     setExpenses([])
     setPayments([])
     setAdjustments([])
-    setProfitData(null)
+    setDetailLoading(true)
 
     // Fetch expenses
     const { data: expData, error: expError } = await supabase
@@ -131,17 +138,7 @@ export default function ProjectsPage() {
       setAdjustments((adjData as any[]) || [])
     }
 
-    // If admin, fetch profit data (using adjusted value)
-    if (role === 'admin') {
-      const { data: profit, error: profitError } = await supabase
-        .rpc('get_project_profit_view')
-      if (profitError) {
-        console.error('Error fetching profit data:', profitError)
-      } else if (profit) {
-        const p = (profit as ProjectProfitView[]).find((p: ProjectProfitView) => p.project_id === project.id)
-        setProfitData(p || null)
-      }
-    }
+    setDetailLoading(false)
   }
 
   // Calculate totals (only approved payments count)
@@ -401,6 +398,13 @@ export default function ProjectsPage() {
     return <StatusBadge>{status}</StatusBadge>
   }
 
+  const marginTint = (status: MarginStatus) => {
+    if (status === 'above_target' || status === 'on_target') return 'text-green-700 dark:text-green-400'
+    if (status === 'below_target') return 'text-amber-600 dark:text-amber-400'
+    if (status === 'loss') return 'text-red-700 dark:text-red-400'
+    return 'text-gray-900'
+  }
+
   const marginStatusBadge = (status: string) => {
     if (status === 'above_target') return <StatusBadge tone="green">Above Target</StatusBadge>
     if (status === 'on_target') return <StatusBadge tone="blue">On Target</StatusBadge>
@@ -506,39 +510,44 @@ export default function ProjectsPage() {
 
       {/* Project Detail Modal */}
       <Modal isOpen={showDetail} onClose={() => { setShowDetail(false); setSelectedProject(null) }} size="2xl">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">{selectedProject?.contacts?.name}</h3>
-            <p className="text-sm text-gray-500">{selectedProject?.contacts?.phone} — {selectedProject?.contacts?.site_location}</p>
-            <p className="text-xs text-gray-400">Quotation: {selectedProject?.quotations?.option_label}</p>
+        {/* Sticky header: stays visible while the long payment/expense lists scroll */}
+        <div className="sticky top-0 z-10 -mx-6 -mt-5 mb-4 px-6 pt-5 pb-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-lg font-semibold">{selectedProject?.contacts?.name}</h3>
+              <p className="text-sm text-gray-500">{selectedProject?.contacts?.phone} — {selectedProject?.contacts?.site_location}</p>
+              <p className="text-xs text-gray-400">Quotation: {selectedProject?.quotations?.option_label}</p>
+            </div>
+            <button onClick={() => { setShowDetail(false); setSelectedProject(null) }}
+              aria-label="Close"
+              className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
           </div>
-          <button onClick={() => { setShowDetail(false); setSelectedProject(null) }}
-            className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
-        </div>
-
-        {selectedProject && (
-          <>
-            <div className="mb-4 flex items-center gap-2">
+          {selectedProject && (
+            <div className="mt-2 flex items-center gap-2">
               {statusBadge(selectedProject.status)}
               {selectedProject.status === 'closed' && (
                 <span className="text-xs text-gray-500">Closed: {selectedProject.closed_at ? new Date(selectedProject.closed_at).toLocaleDateString() : 'N/A'}</span>
               )}
             </div>
+          )}
+        </div>
 
+        {selectedProject && (
+          <>
             {/* Financial Summary */}
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <h4 className="text-sm font-medium text-gray-700 mb-2">Financial Summary</h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
                 <div>
                   <div className="text-xs text-gray-500">Quotation Value</div>
-                  <div className="text-lg font-bold text-gray-900">₹{Number(selectedProject.baseline_quotation_value).toLocaleString()}</div>
+                  <div className="text-lg font-bold text-gray-900">{formatINR(selectedProject.baseline_quotation_value)}</div>
                   {(selectedProject.adjusted_quotation_value && Number(selectedProject.adjusted_quotation_value) !== Number(selectedProject.baseline_quotation_value)) && (
-                    <div className="text-xs text-gray-500">Adjusted to: <span className="font-semibold text-gray-700">₹{Number(selectedProject.adjusted_quotation_value).toLocaleString()}</span></div>
+                    <div className="text-xs text-gray-500">Adjusted to: <span className="font-semibold text-gray-700">{formatINR(selectedProject.adjusted_quotation_value)}</span></div>
                   )}
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Actual Cost</div>
-                  <div className="text-lg font-bold text-gray-900">₹{Number(selectedProject.actual_cost_total).toLocaleString()}</div>
+                  <div className="text-lg font-bold text-gray-900">{formatINR(selectedProject.actual_cost_total)}</div>
                 </div>
               </div>
 
@@ -548,19 +557,24 @@ export default function ProjectsPage() {
                 const effectiveValue = getEffectiveQuotationValue(selectedProject)
                 const outstanding = effectiveValue - totalReceived
                 return (
-                  <div className={`mt-3 pt-3 border-t border-gray-200 ${outstanding <= 0 ? 'bg-green-50 dark:bg-green-950 -mx-4 px-4 py-3 rounded-b-lg' : 'bg-amber-50 dark:bg-amber-950 -mx-4 px-4 py-3 rounded-b-lg'}`}>
+                  <div className={`mt-3 pt-3 border-t border-gray-200 -mx-4 px-4 py-3 ${role === 'admin' ? '' : 'rounded-b-lg'} ${outstanding <= 0 && !detailLoading ? 'bg-green-50 dark:bg-green-950' : 'bg-amber-50 dark:bg-amber-950'}`}>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700">Total Received</span>
-                      <span className="text-sm font-bold text-gray-900">₹{totalReceived.toLocaleString()}</span>
+                      {detailLoading ? <Skel className="h-4 w-20" /> : (
+                        <span className="text-sm font-bold text-gray-900">{formatINR(totalReceived)}</span>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-sm font-medium text-gray-700">Outstanding Balance</span>
-                      {outstanding > 0 ? (
-                        <span className="text-base font-bold text-red-600">₹{outstanding.toLocaleString()}</span>
+                    <div className="flex items-center justify-between mt-1 gap-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Outstanding Balance
+                        <span className="block text-[10px] font-normal text-gray-500">= Quotation Value − Total Received</span>
+                      </span>
+                      {detailLoading ? <Skel className="h-5 w-24" /> : outstanding > 0 ? (
+                        <span className="text-base font-bold text-red-600 dark:text-red-400">{formatINR(outstanding)}</span>
                       ) : outstanding < 0 ? (
-                        <span className="text-base font-bold text-green-600">Overpaid by ₹{Math.abs(outstanding).toLocaleString()} ✅</span>
+                        <span className="text-base font-bold text-green-600 dark:text-green-400">Overpaid by {formatINR(Math.abs(outstanding))} ✅</span>
                       ) : (
-                        <span className="text-base font-bold text-green-600">Fully Paid ✅</span>
+                        <span className="text-base font-bold text-green-600 dark:text-green-400">Fully Paid ✅</span>
                       )}
                     </div>
                   </div>
@@ -568,30 +582,54 @@ export default function ProjectsPage() {
               })()}
 
               {/* Profit/Margin Section - Admin Only */}
-              {role === 'admin' && profitData && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="text-xs text-gray-500">Profit Amount</div>
-                      <div className={`text-lg font-bold ${Number(profitData.profit_amount) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        ₹{Number(profitData.profit_amount).toLocaleString()}
+              {role === 'admin' && (() => {
+                const { profit, margin, status } = calcProfit(
+                  getTotalReceived(payments),
+                  Number(selectedProject.actual_cost_total),
+                  Number(selectedProject.target_margin_percent),
+                )
+                const expected = calcExpectedProfit(getEffectiveQuotationValue(selectedProject), Number(selectedProject.actual_cost_total))
+                return (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-xs text-gray-500">
+                          Profit Amount
+                          <InfoTip label="How profit is calculated" text="Profit = Total Received − Actual Cost. Only approved payments count; the quotation value is not used." />
+                        </div>
+                        {detailLoading ? <Skel className="h-6 w-28 mt-1" /> : (
+                          <div className={`text-lg font-bold ${profit >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                            {formatINR(profit)}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">
+                          Margin
+                          <InfoTip label="How margin is calculated" text="Margin = Profit ÷ Total Received. Shows 0% until a payment has been received." />
+                        </div>
+                        {detailLoading ? <Skel className="h-6 w-16 mt-1" /> : (
+                          <div className={`text-lg font-bold ${marginTint(status)}`}>{margin}%</div>
+                        )}
                       </div>
                     </div>
-                    <div>
-                      <div className="text-xs text-gray-500">Margin</div>
-                      <div className="text-lg font-bold text-gray-900">{profitData.margin_percent}%</div>
+                    {!detailLoading && (
+                      <div className="mt-1 text-[11px] text-gray-400">
+                        Expected if fully paid: {formatINR(expected.profit)} ({expected.margin}%)
+                        <InfoTip label="What expected profit means" text="What you would earn if the client pays the full quotation: Quotation Value − Actual Cost. Changes as costs change." />
+                      </div>
+                    )}
+                    <div className="mt-2 flex items-center justify-between">
+                      <div>
+                        {!detailLoading && marginStatusBadge(status)}
+                        <span className="ml-2 text-xs text-gray-400">Target: {selectedProject.target_margin_percent}%</span>
+                      </div>
+                      <button onClick={() => handleUpdateProjectMargin(selectedProject.id, selectedProject.target_margin_percent)}
+                        className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Change Target</button>
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <div>
-                      {marginStatusBadge(profitData.margin_status)}
-                      <span className="ml-2 text-xs text-gray-400">Target: {profitData.target_margin}%</span>
-                    </div>
-                    <button onClick={() => handleUpdateProjectMargin(selectedProject.id, selectedProject.target_margin_percent)}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium">Change Target</button>
-                  </div>
-                </div>
-              )}
+                )
+              })()}
 
               {role === 'rep' && (
                 <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-400">
@@ -618,9 +656,14 @@ export default function ProjectsPage() {
                   )
                 </h4>
                 <button onClick={() => setShowAddPayment(true)}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Add Payment</button>
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">+ Add Payment</button>
               </div>
-              {payments.length === 0 ? (
+              {detailLoading ? (
+                <div className="space-y-2">
+                  <Skel className="h-14 w-full" />
+                  <Skel className="h-14 w-full" />
+                </div>
+              ) : payments.length === 0 ? (
                 <p className="text-sm text-gray-400">No client payments recorded yet.</p>
               ) : (
                 <div className="space-y-2">
@@ -636,11 +679,11 @@ export default function ProjectsPage() {
                           </div>
                           <div className="text-xs text-gray-500">{new Date(p.date).toLocaleDateString()}{p.notes ? ` — ${p.notes}` : ''}</div>
                           {p.status === 'rejected' && p.rejection_reason && (
-                            <div className="text-xs text-red-600 mt-0.5">Reason: {p.rejection_reason}</div>
+                            <div className="text-xs text-red-600 dark:text-red-400 mt-0.5">Reason: {p.rejection_reason}</div>
                           )}
                           {receiptPublicUrl && (
                             <a href={receiptPublicUrl} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:text-blue-800 underline mt-0.5 inline-block">View Receipt</a>
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline mt-0.5 inline-block">View Receipt</a>
                           )}
                         </div>
                       </div>
@@ -661,7 +704,7 @@ export default function ProjectsPage() {
                           <span className="text-gray-500">₹{Number(adj.old_value).toLocaleString()}</span>
                           <span className="mx-1 text-gray-400">→</span>
                           <span className="font-medium text-gray-900">₹{Number(adj.new_value).toLocaleString()}</span>
-                          <span className="ml-2 text-xs text-red-600">(-₹{(Number(adj.old_value) - Number(adj.new_value)).toLocaleString()})</span>
+                          <span className="ml-2 text-xs text-red-600 dark:text-red-400">(-₹{(Number(adj.old_value) - Number(adj.new_value)).toLocaleString()})</span>
                         </div>
                         <div className="text-xs text-gray-400">{new Date(adj.created_at).toLocaleDateString()}</div>
                       </div>
@@ -715,7 +758,12 @@ export default function ProjectsPage() {
                   })()}
                 )
               </h4>
-              {expenses.length === 0 ? (
+              {detailLoading ? (
+                <div className="space-y-2">
+                  <Skel className="h-14 w-full" />
+                  <Skel className="h-14 w-full" />
+                </div>
+              ) : expenses.length === 0 ? (
                 <p className="text-sm text-gray-400">No expense entries yet.</p>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -723,7 +771,7 @@ export default function ProjectsPage() {
                     const billUrls = exp.bill_urls && Array.isArray(exp.bill_urls) && exp.bill_urls.length > 0 ? exp.bill_urls : (exp.bill_url ? [exp.bill_url] : [])
                     return (
                       <div key={exp.id}
-                        className="flex items-center justify-between bg-gray-50 p-3 rounded-md cursor-pointer hover:bg-gray-100"
+                        className="flex items-center justify-between bg-gray-50 p-3 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                         onClick={() => { setSelectedExpense(exp); setShowExpenseDetail(true) }}>
                         <div>
                           <div className="flex items-center gap-2">
@@ -732,10 +780,10 @@ export default function ProjectsPage() {
                           </div>
                           <div className="text-xs text-gray-500">{exp.category} — {new Date(exp.date).toLocaleDateString()}</div>
                           {exp.status === 'rejected' && exp.rejection_reason && (
-                            <div className="text-xs text-red-600 mt-0.5">Reason: {exp.rejection_reason}</div>
+                            <div className="text-xs text-red-600 dark:text-red-400 mt-0.5">Reason: {exp.rejection_reason}</div>
                           )}
                           {exp.bill_no && <div className="text-xs text-gray-400">Bill No: {exp.bill_no}</div>}
-                          {billUrls.length > 0 && <div className="text-xs text-blue-500">📎 {billUrls.length > 1 ? `${billUrls.length} bills` : 'Bill'} attached</div>}
+                          {billUrls.length > 0 && <div className="text-xs text-blue-500 dark:text-blue-400">📎 {billUrls.length > 1 ? `${billUrls.length} bills` : 'Bill'} attached</div>}
                         </div>
                         <div className="text-sm font-medium text-gray-900">₹{Number(exp.amount).toLocaleString()}</div>
                       </div>
@@ -749,7 +797,7 @@ export default function ProjectsPage() {
               <div className="space-y-2">
                 {selectedProject.status !== 'closed' && (
                   <button onClick={() => { setAdjustNewValue(String(getEffectiveQuotationValue(selectedProject))); setShowAdjustModal(true) }}
-                    className="w-full px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 dark:bg-blue-950 dark:text-blue-300 rounded-md hover:bg-blue-100">
+                    className="w-full px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 dark:text-blue-300 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900">
                     📝 Adjust Quotation Value
                   </button>
                 )}
@@ -815,7 +863,7 @@ export default function ProjectsPage() {
                 reader.readAsDataURL(file)
               }
             }}
-              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-950 file:text-blue-700 hover:file:bg-blue-100" />
+              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-950 file:text-blue-700 dark:text-blue-400 hover:file:bg-blue-100" />
             {receiptPreview && (
               <div className="mt-2">
                 {paymentReceipt?.type.startsWith('image/') ? (
@@ -904,7 +952,7 @@ export default function ProjectsPage() {
               <label className="block text-xs font-medium text-gray-500">Status</label>
               <div className="mt-0.5">{getStatusBadge(selectedExpense.status)}</div>
               {selectedExpense.status === 'rejected' && selectedExpense.rejection_reason && (
-                <p className="mt-1 text-xs text-red-600">Reason: {selectedExpense.rejection_reason}</p>
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400">Reason: {selectedExpense.rejection_reason}</p>
               )}
             </div>
             <div><label className="block text-xs font-medium text-gray-500">Bill No</label><p className="text-sm text-gray-900">{selectedExpense.bill_no || '—'}</p></div>
@@ -929,7 +977,7 @@ export default function ProjectsPage() {
                           {isPdf ? (
                             <div>
                               <iframe src={publicUrl} className="w-full h-24 rounded border" title={`Bill ${i + 1}`} />
-                              <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline">Open PDF</a>
+                              <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline">Open PDF</a>
                             </div>
                           ) : (
                             <img src={publicUrl} alt={`Bill ${i + 1}`} className="w-full h-24 object-cover rounded border cursor-pointer" onClick={() => window.open(publicUrl, '_blank')}
