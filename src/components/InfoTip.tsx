@@ -47,10 +47,10 @@ export default function InfoTip({ text, label = 'More info' }: InfoTipProps) {
         aria-label={label}
         aria-describedby={open ? id : undefined}
         aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen(true)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-gray-400 text-[9px] font-semibold leading-none text-gray-500 hover:border-gray-600 hover:text-gray-700 dark:border-gray-500 dark:text-gray-400 dark:hover:border-gray-300 dark:hover:text-gray-200"
+        className="ml-1 inline-flex h-3.5 min-h-0! w-3.5 items-center justify-center rounded-full border border-gray-400 text-[9px] font-semibold leading-none text-gray-500 hover:border-gray-600 hover:text-gray-700 dark:border-gray-500 dark:text-gray-400 dark:hover:border-gray-300 dark:hover:text-gray-200"
       >
         i
       </button>
