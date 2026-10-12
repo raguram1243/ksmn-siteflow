@@ -153,38 +153,9 @@ CREATE TABLE IF NOT EXISTS public.expense_entries (
 -- NOTE: RLS is NOT applied to views by default in Supabase.
 -- We will grant SELECT only to admin role via a function-based approach.
 
-CREATE OR REPLACE VIEW public.project_profit_view AS
-SELECT
-  p.id AS project_id,
-  c.name AS contact_name,
-  c.phone AS contact_phone,
-  c.site_location,
-  p.baseline_quotation_value,
-  p.actual_cost_total,
-  (p.baseline_quotation_value - p.actual_cost_total) AS profit_amount,
-  CASE
-    WHEN p.baseline_quotation_value > 0
-    THEN ROUND(((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100)::numeric, 2)
-    ELSE 0
-  END AS margin_percent,
-  p.target_margin_percent,
-  CASE
-    WHEN p.actual_cost_total = 0 AND p.baseline_quotation_value > 0 THEN 'above_target'
-    WHEN p.baseline_quotation_value = 0 THEN 'no_data'
-    WHEN ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100) >= (p.target_margin_percent + 2) THEN 'above_target'
-    WHEN ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100) >= p.target_margin_percent THEN 'on_target'
-    WHEN ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100) > 0 THEN 'below_target'
-    ELSE 'loss'
-  END AS margin_status,
-  p.status AS project_status,
-  p.created_at,
-  p.closed_at
-FROM public.projects p
-JOIN public.contacts c ON c.id = p.contact_id;
-
--- Grant select on the view (we'll enforce admin-only via RLS on the underlying tables)
--- Actually, for views, we create a security barrier and use a helper:
-ALTER VIEW public.project_profit_view SET (security_barrier = true);
+-- NOTE: profit/margin logic moved to supabase-profit-cash-basis.sql (cash basis:
+-- profit = total received - actual cost). project_profit_view was removed from this file
+-- so re-running it can't restore the old quotation-based formula.
 
 -- ============================================================================
 -- 10. ROW LEVEL SECURITY POLICIES
@@ -351,27 +322,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Revoke all on the view from public, then grant to authenticated
-REVOKE ALL ON public.project_profit_view FROM PUBLIC;
-GRANT SELECT ON public.project_profit_view TO authenticated;
-
--- Create a policy on the underlying tables to filter based on admin
--- But since views bypass RLS on base tables, we use a security barrier
--- The RLS on underlying tables still applies when querying through the view
--- But for extra safety, we create a wrapper:
-
-CREATE OR REPLACE FUNCTION public.get_project_profit_view()
-RETURNS SETOF public.project_profit_view
-LANGUAGE sql
-SECURITY DEFINER
-AS $$
-  SELECT * FROM public.project_profit_view
-  WHERE public.is_admin() = TRUE;
-$$;
-
--- Revoke execute on the function from public, grant only to authenticated
-REVOKE ALL ON FUNCTION public.get_project_profit_view() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_project_profit_view() TO authenticated;
+-- NOTE: profit/margin logic moved to supabase-profit-cash-basis.sql (cash basis:
+-- profit = total received - actual cost). get_project_profit_view() was removed from this file
+-- so re-running it can't restore the old quotation-based formula.
 
 -- ============================================================================
 -- 11. INDEXES for performance

@@ -119,34 +119,9 @@ BEGIN
 END;
 $$;
 
--- 4. TOTAL PROFIT
--- Cumulative lifetime profit = sum of (Adjusted Quotation Value - Actual Cost)
--- across all completed/closed projects only
-CREATE OR REPLACE FUNCTION public.get_total_profit()
-RETURNS TABLE (
-  total_profit NUMERIC,
-  total_revenue NUMERIC,
-  total_cost NUMERIC,
-  closed_project_count BIGINT
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Access denied: admin role required';
-  END IF;
-
-  RETURN QUERY
-  SELECT
-    COALESCE(SUM(COALESCE(p.adjusted_quotation_value, p.baseline_quotation_value) - p.actual_cost_total), 0) AS total_profit,
-    COALESCE(SUM(COALESCE(p.adjusted_quotation_value, p.baseline_quotation_value)), 0) AS total_revenue,
-    COALESCE(SUM(p.actual_cost_total), 0) AS total_cost,
-    COUNT(*) AS closed_project_count
-  FROM public.projects p
-  WHERE p.status = 'closed';
-END;
-$$;
+-- NOTE: profit/margin logic moved to supabase-profit-cash-basis.sql (cash basis:
+-- profit = total received - actual cost). get_total_profit() was removed from this file
+-- so re-running it can't restore the old quotation-based formula.
 
 -- 5. EXPENSE MONTHLY COMPARISON
 -- This Month vs Last Month total expenses
@@ -350,7 +325,6 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_admin_collection_summary() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_overdue_collections() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_average_project_duration() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_total_profit() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_expense_monthly_comparison() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_expense_category_breakdown() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_top_project_by_expense() TO authenticated;

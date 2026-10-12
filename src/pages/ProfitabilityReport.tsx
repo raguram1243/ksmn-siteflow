@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import StatusBadge, { type BadgeTone } from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import { SkeletonTable } from '../components/Skeleton'
+import { calcProfit, calcExpectedProfit } from '../lib/profit'
+import { formatINR } from '../lib/format'
 
 interface ProfitRow {
   project_id: string
@@ -11,7 +13,12 @@ interface ProfitRow {
   site_location?: string
   baseline_quotation_value: number
   adjusted_quotation_value: number | null
+  quotation_value: number
   actual_cost_total: number
+  total_received: number
+  profit_amount: number
+  expected_profit: number
+  expected_margin: number
   target_margin_percent: number
   margin_percent: number
   margin_status: string
@@ -36,7 +43,34 @@ const STATUS_LABEL: Record<string, string> = {
   no_data: 'No Data',
 }
 
-const inr = (n: number) => `₹${Number(n || 0).toLocaleString('en-IN')}`
+const inr = formatINR
+
+type ColumnKey = 'location' | 'quotation' | 'received' | 'cost' | 'expected' | 'status'
+
+const COLUMN_LABELS: Record<ColumnKey, string> = {
+  location: 'Location',
+  quotation: 'Quotation',
+  received: 'Received',
+  cost: 'Cost',
+  expected: 'Expected profit',
+  status: 'Status',
+}
+
+const DEFAULT_COLUMNS: Record<ColumnKey, boolean> = {
+  location: true, quotation: true, received: true, cost: true, expected: true, status: true,
+}
+
+const COLUMNS_STORAGE_KEY = 'profitability-report-columns'
+
+function loadColumns(): Record<ColumnKey, boolean> {
+  try {
+    const raw = localStorage.getItem(COLUMNS_STORAGE_KEY)
+    if (raw) return { ...DEFAULT_COLUMNS, ...JSON.parse(raw) }
+  } catch {
+    // storage unavailable or corrupt - fall back to defaults
+  }
+  return DEFAULT_COLUMNS
+}
 
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const csv = rows
@@ -59,6 +93,33 @@ export default function ProfitabilityReport() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterMargin, setFilterMargin] = useState('all')
   const [sortBy, setSortBy] = useState<'margin' | 'value' | 'recent'>('margin')
+  const [columns, setColumns] = useState<Record<ColumnKey, boolean>>(loadColumns)
+  const [showColumnMenu, setShowColumnMenu] = useState(false)
+  const columnMenuRef = useRef<HTMLDivElement>(null)
+
+  function toggleColumn(key: ColumnKey) {
+    setColumns(prev => {
+      const next = { ...prev, [key]: !prev[key] }
+      try { localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(next)) } catch { /* non-critical */ }
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (!showColumnMenu) return
+    function onDown(e: MouseEvent) {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target as Node)) setShowColumnMenu(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setShowColumnMenu(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [showColumnMenu])
 
   useEffect(() => {
     let cancelled = false
@@ -67,10 +128,7 @@ export default function ProfitabilityReport() {
       setLoading(true)
       setError(null)
 
-      const [profitRes, projectsRes] = await Promise.all([
-        supabase.rpc('get_project_profit_view'),
-        supabase.from('projects').select('id, adjusted_quotation_value'),
-      ])
+      const profitRes = await supabase.rpc('get_project_profit_view')
 
       if (cancelled) return
 
@@ -80,31 +138,27 @@ export default function ProfitabilityReport() {
         return
       }
 
-      // The RPC only sees baseline values; overlay adjusted (discounted)
-      // values so margins match what ProjectsPage displays.
-      const adjustedMap = new Map<string, number | null>()
-      for (const p of (projectsRes.data || []) as any[]) {
-        adjustedMap.set(p.id, p.adjusted_quotation_value)
-      }
-
+      // Profit is cash-basis (received - cost); quotation value is reference only.
       const merged = ((profitRes.data || []) as any[]).map(r => {
-        const adjusted = adjustedMap.get(r.project_id) ?? null
-        const eff = Number(adjusted || r.baseline_quotation_value || 0)
+        const received = Number(r.total_received || 0)
         const cost = Number(r.actual_cost_total || 0)
-        const margin = eff > 0 ? ((eff - cost) / eff) * 100 : 0
         const target = Number(r.target_margin_percent || 0)
+        const { profit, margin, status } = calcProfit(received, cost, target)
+        const quotation = Number(r.effective_quotation_value || r.baseline_quotation_value || 0)
+        const expected = calcExpectedProfit(quotation, cost)
         return {
           ...r,
-          adjusted_quotation_value: adjusted,
           baseline_quotation_value: Number(r.baseline_quotation_value || 0),
+          adjusted_quotation_value: r.adjusted_quotation_value ?? null,
+          quotation_value: Number(r.effective_quotation_value || r.baseline_quotation_value || 0),
           actual_cost_total: cost,
+          total_received: received,
+          profit_amount: profit,
+          expected_profit: expected.profit,
+          expected_margin: expected.margin,
           target_margin_percent: target,
-          margin_percent: eff > 0 ? Number(margin.toFixed(2)) : 0,
-          margin_status: Number(r.baseline_quotation_value) === 0
-            ? 'no_data'
-            : margin >= target + 2 ? 'above_target'
-            : margin >= target ? 'on_target'
-            : margin > 0 ? 'below_target' : 'loss',
+          margin_percent: margin,
+          margin_status: status,
         } as ProfitRow
       })
 
@@ -131,24 +185,26 @@ export default function ProfitabilityReport() {
     })
 
     return [...out].sort((a, b) => {
-      if (sortBy === 'value') return b.baseline_quotation_value - a.baseline_quotation_value
+      if (sortBy === 'value') return b.quotation_value - a.quotation_value
       if (sortBy === 'recent') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       return a.margin_percent - b.margin_percent // worst first
     })
   }, [rows, search, filterStatus, filterMargin, sortBy])
 
   const summary = useMemo(() => {
-    const withData = rows.filter(r => r.baseline_quotation_value > 0)
-    const totalValue = rows.reduce((s, r) => s + r.baseline_quotation_value, 0)
+    const withReceipts = rows.filter(r => r.total_received > 0)
+    const totalValue = rows.reduce((s, r) => s + r.quotation_value, 0)
+    const totalReceived = rows.reduce((s, r) => s + r.total_received, 0)
     const totalCost = rows.reduce((s, r) => s + r.actual_cost_total, 0)
-    const avgMargin = withData.length
-      ? withData.reduce((s, r) => s + r.margin_percent, 0) / withData.length
+    const avgMargin = withReceipts.length
+      ? withReceipts.reduce((s, r) => s + r.margin_percent, 0) / withReceipts.length
       : 0
     return {
       count: rows.length,
       totalValue,
+      totalReceived,
       totalCost,
-      totalProfit: totalValue - totalCost,
+      totalProfit: totalReceived - totalCost,
       avgMargin: Number(avgMargin.toFixed(2)),
       lossCount: rows.filter(r => r.margin_status === 'loss').length,
       belowCount: rows.filter(r => r.margin_status === 'below_target').length,
@@ -156,15 +212,18 @@ export default function ProfitabilityReport() {
   }, [rows])
 
   function handleExport() {
-    const header = ['Client', 'Phone', 'Location', 'Quotation Value', 'Cost', 'Profit', 'Margin %', 'Target %', 'Margin Status', 'Project Status', 'Closed At']
+    const header = ['Client', 'Phone', 'Location', 'Quotation Value', 'Total Received', 'Cost', 'Profit', 'Expected Profit', 'Margin %', 'Expected Margin %', 'Target %', 'Margin Status', 'Project Status', 'Closed At']
     const body = filtered.map(r => [
       r.contact_name,
       r.contact_phone || '',
       r.site_location || '',
-      r.baseline_quotation_value,
+      r.quotation_value,
+      r.total_received,
       r.actual_cost_total,
-      Number((r.baseline_quotation_value - r.actual_cost_total).toFixed(2)),
+      Number(r.profit_amount.toFixed(2)),
+      Number(r.expected_profit.toFixed(2)),
       r.margin_percent,
+      r.expected_margin,
       r.target_margin_percent,
       STATUS_LABEL[r.margin_status] || r.margin_status,
       r.project_status,
@@ -181,7 +240,7 @@ export default function ProfitabilityReport() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Profitability Report</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Per-project margin vs target, worst performers first
+            Per-project margin vs target, worst performers first. Profit = Total Received − Actual Cost; margin = profit ÷ received.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -207,8 +266,9 @@ export default function ProfitabilityReport() {
           <div className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1">{summary.count}</div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Booked Value</div>
-          <div className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1">{inr(summary.totalValue)}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">Total Received</div>
+          <div className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1">{inr(summary.totalReceived)}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">of {inr(summary.totalValue)} quoted</div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <div className="text-xs text-gray-500 dark:text-gray-400">Total Cost</div>
@@ -257,6 +317,30 @@ export default function ProfitabilityReport() {
           <option value="value">Sort: Highest Value</option>
           <option value="recent">Sort: Most Recent</option>
         </select>
+        <div className="relative no-print" ref={columnMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowColumnMenu(o => !o)}
+            aria-haspopup="true"
+            aria-expanded={showColumnMenu}
+            className={`${inputClass} font-medium`}
+          >
+            Columns ▾
+          </button>
+          {showColumnMenu && (
+            <div className="absolute right-0 z-30 mt-1 w-48 rounded-md border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-600 dark:bg-gray-800">
+              {(Object.keys(COLUMN_LABELS) as ColumnKey[]).map(key => (
+                <label key={key} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700">
+                  <input type="checkbox" checked={columns[key]} onChange={() => toggleColumn(key)} />
+                  {COLUMN_LABELS[key]}
+                </label>
+              ))}
+              <div className="mt-1 border-t border-gray-100 px-2 pt-1.5 text-[11px] text-gray-400 dark:border-gray-700">
+                Client, Profit and Margin are always shown.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -279,22 +363,23 @@ export default function ProfitabilityReport() {
         />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[70vh] print:max-h-none print:overflow-visible">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-900/50 text-left">
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-900 text-left shadow-[0_1px_0_0_rgb(229,231,235)] dark:shadow-[0_1px_0_0_rgb(55,65,81)]">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Client</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Location</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-right">Value</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-right">Cost</th>
+                  {columns.location && <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Location</th>}
+                  {columns.quotation && <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-right">Quotation</th>}
+                  {columns.received && <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-right">Received</th>}
+                  {columns.cost && <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-right">Cost</th>}
                   <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-right">Profit</th>
                   <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-right">Margin</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                  {columns.status && <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {filtered.map(r => {
-                  const profit = r.baseline_quotation_value - r.actual_cost_total
+                  const profit = r.profit_amount
                   const adjusted =
                     r.adjusted_quotation_value != null &&
                     Number(r.adjusted_quotation_value) !== r.baseline_quotation_value
@@ -306,18 +391,32 @@ export default function ProfitabilityReport() {
                           <div className="text-xs text-gray-500 dark:text-gray-400">{r.contact_phone}</div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{r.site_location || '—'}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-gray-100">
-                        {inr(r.baseline_quotation_value)}
-                        {adjusted && (
-                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Adjusted</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-300">
-                        {inr(r.actual_cost_total)}
-                      </td>
+                      {columns.location && <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{r.site_location || '—'}</td>}
+                      {columns.quotation && (
+                        <td className="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-gray-100">
+                          {inr(r.quotation_value)}
+                          {adjusted && (
+                            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Adjusted</div>
+                          )}
+                        </td>
+                      )}
+                      {columns.received && (
+                        <td className="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-gray-100">
+                          {inr(r.total_received)}
+                        </td>
+                      )}
+                      {columns.cost && (
+                        <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-300">
+                          {inr(r.actual_cost_total)}
+                        </td>
+                      )}
                       <td className={`px-4 py-3 text-right tabular-nums font-medium ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {inr(profit)}
+                        {columns.expected && (
+                          <div className="text-[10px] font-normal text-gray-400 dark:text-gray-500">
+                            Expected {inr(r.expected_profit)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className={`tabular-nums font-semibold ${r.margin_percent >= 0 ? 'text-gray-900 dark:text-gray-100' : 'text-red-600 dark:text-red-400'}`}>
@@ -327,11 +426,13 @@ export default function ProfitabilityReport() {
                           Target {r.target_margin_percent}%
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge tone={STATUS_TONE[r.margin_status] || 'gray'}>
-                          {STATUS_LABEL[r.margin_status] || r.margin_status}
-                        </StatusBadge>
-                      </td>
+                      {columns.status && (
+                        <td className="px-4 py-3">
+                          <StatusBadge tone={STATUS_TONE[r.margin_status] || 'gray'}>
+                            {STATUS_LABEL[r.margin_status] || r.margin_status}
+                          </StatusBadge>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}

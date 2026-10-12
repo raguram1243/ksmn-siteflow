@@ -26,50 +26,9 @@ VALUES ('default_target_margin', '10.00')
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- 2. Drop and recreate the portfolio summary RPC with per-definition calculations
-DROP FUNCTION IF EXISTS public.get_admin_portfolio_summary();
-
-CREATE OR REPLACE FUNCTION public.get_admin_portfolio_summary()
-RETURNS TABLE (
-  active_projects bigint,
-  total_quoted_value numeric,
-  avg_margin numeric,
-  below_target_count bigint,
-  total_projects bigint
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    -- Active Projects = count of in_progress only
-    COUNT(*) FILTER (WHERE p.status = 'in_progress')::bigint AS active_projects,
-    -- Total Quoted Value = sum of baseline across ALL projects (in_progress + completed/closed)
-    COALESCE(SUM(p.baseline_quotation_value), 0)::numeric AS total_quoted_value,
-    -- Avg Margin = average across ONLY completed/closed projects (backward-looking)
-    COALESCE(
-      AVG(
-        CASE 
-          WHEN p.status IN ('completed', 'closed')
-          AND p.baseline_quotation_value > 0 
-          THEN ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100)
-          ELSE NULL 
-        END
-      ), 0
-    )::numeric AS avg_margin,
-    -- Below Target Margin = count of completed/closed projects below THEIR OWN target
-    COUNT(*) FILTER (
-      WHERE p.status IN ('completed', 'closed')
-      AND p.baseline_quotation_value > 0 
-      AND ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100) < p.target_margin_percent
-    )::bigint AS below_target_count,
-    -- Total Projects = count of ALL projects
-    COUNT(*)::bigint AS total_projects
-  FROM public.projects p;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_admin_portfolio_summary() TO authenticated;
+-- NOTE: profit/margin logic moved to supabase-profit-cash-basis.sql (cash basis:
+-- profit = total received - actual cost). get_admin_portfolio_summary() was removed from this file
+-- so re-running it can't restore the old quotation-based formula.
 
 -- 3. Create function to get global setting
 CREATE OR REPLACE FUNCTION public.get_global_setting(setting_key TEXT)

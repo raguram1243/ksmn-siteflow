@@ -164,42 +164,9 @@ $$;
 -- ----------------------------------------------------------------------------
 -- 5. Admin dashboard functions: admin only
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.get_admin_portfolio_summary()
-RETURNS TABLE (
-  active_projects BIGINT,
-  total_quoted_value NUMERIC,
-  avg_margin NUMERIC,
-  below_target_count BIGINT,
-  total_projects BIGINT
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Access denied: admin role required';
-  END IF;
-
-  RETURN QUERY
-  SELECT
-    COUNT(*) FILTER (WHERE p.status = 'in_progress')::BIGINT AS active_projects,
-    COALESCE(SUM(p.baseline_quotation_value), 0)::NUMERIC AS total_quoted_value,
-    COALESCE(AVG(CASE
-          WHEN p.status IN ('completed', 'closed')
-          AND p.baseline_quotation_value > 0
-          THEN ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100)
-          ELSE NULL
-        END), 0)::NUMERIC AS avg_margin,
-    COUNT(*) FILTER (
-      WHERE p.status IN ('completed', 'closed')
-      AND p.baseline_quotation_value > 0
-      AND ((p.baseline_quotation_value - p.actual_cost_total) / p.baseline_quotation_value * 100) < p.target_margin_percent
-    )::BIGINT AS below_target_count,
-    COUNT(*)::BIGINT AS total_projects
-  FROM public.projects p;
-END;
-$$;
+-- NOTE: profit/margin logic moved to supabase-profit-cash-basis.sql (cash basis:
+-- profit = total received - actual cost). get_admin_portfolio_summary() was removed from this file
+-- so re-running it can't restore the old quotation-based formula.
 
 CREATE OR REPLACE FUNCTION public.get_conversion_funnel()
 RETURNS TABLE (
