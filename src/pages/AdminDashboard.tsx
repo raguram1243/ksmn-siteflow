@@ -512,11 +512,11 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <div className="text-sm text-gray-500">Total Received</div>
-                <div className="text-xl font-bold text-gray-900">₹{Number(totalProfit.total_revenue).toLocaleString()}</div>
+                <div className="text-xl font-bold text-gray-900">{formatINR(totalProfit.total_revenue)}</div>
               </div>
               <div>
                 <div className="text-sm text-gray-500">Total Cost</div>
-                <div className="text-xl font-bold text-gray-900">₹{Number(totalProfit.total_cost).toLocaleString()}</div>
+                <div className="text-xl font-bold text-gray-900">{formatINR(totalProfit.total_cost)}</div>
               </div>
               <div>
                 <div className="text-sm text-gray-500">Avg Project Duration</div>
